@@ -5,17 +5,26 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRegistration } from "@/contexts/RegistrationContext"
 
 export default function SelectCoursePage() {
   const router = useRouter()
+  const { registrationData, updateRegistrationData } = useRegistration()
+  
   const [formData, setFormData] = useState({
-    category: "",
-    course: "",
-    duration: "",
+    category_id: registrationData.category_id || "",
+    course_id: registrationData.course_id || "",
+    duration: registrationData.duration || "",
   })
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
+    // Update registration context with course data
+    updateRegistrationData({
+      category_id: formData.category_id,
+      course_id: formData.course_id,
+      duration: formData.duration,
+    })
     router.push("/register/select-branch")
   }
 
@@ -53,15 +62,15 @@ export default function SelectCoursePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 7a2 2 0 012-2h10a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
-              <Select value={formData.category} onValueChange={(value) => handleSelectChange("category", value)}>
+              <Select value={formData.category_id} onValueChange={(value) => handleSelectChange("category_id", value)}>
                 <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
                   <SelectValue placeholder="Select Category" className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="martial-arts" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Martial Arts</SelectItem>
-                  <SelectItem value="fitness" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Fitness</SelectItem>
-                  <SelectItem value="dance" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Dance</SelectItem>
-                  <SelectItem value="self-defense" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Self Defense</SelectItem>
+                  <SelectItem value="1" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Martial Arts</SelectItem>
+                  <SelectItem value="2" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Fitness</SelectItem>
+                  <SelectItem value="3" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Dance</SelectItem>
+                  <SelectItem value="4" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Self Defense</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -73,16 +82,16 @@ export default function SelectCoursePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
-              <Select value={formData.course} onValueChange={(value) => handleSelectChange("course", value)}>
+              <Select value={formData.course_id} onValueChange={(value) => handleSelectChange("course_id", value)}>
                 <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
                   <SelectValue placeholder="Choose Course" className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="karate" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Karate</SelectItem>
-                  <SelectItem value="taekwondo" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Taekwondo</SelectItem>
-                  <SelectItem value="kung-fu" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Kung Fu</SelectItem>
-                  <SelectItem value="boxing" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Boxing</SelectItem>
-                  <SelectItem value="jiu-jitsu" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Jiu Jitsu</SelectItem>
+                  <SelectItem value="1" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Karate</SelectItem>
+                  <SelectItem value="2" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Taekwondo</SelectItem>
+                  <SelectItem value="3" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Kung Fu</SelectItem>
+                  <SelectItem value="4" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Boxing</SelectItem>
+                  <SelectItem value="5" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Jiu Jitsu</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -99,10 +108,10 @@ export default function SelectCoursePage() {
                   <SelectValue placeholder="Select Duration" className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="1-month" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">1 Month</SelectItem>
-                  <SelectItem value="3-months" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">3 Months</SelectItem>
-                  <SelectItem value="6-months" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">6 Months</SelectItem>
-                  <SelectItem value="1-year" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">1 Year</SelectItem>
+                  <SelectItem value="1" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">1 Month</SelectItem>
+                  <SelectItem value="3" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">3 Months</SelectItem>
+                  <SelectItem value="6" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">6 Months</SelectItem>
+                  <SelectItem value="12" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">1 Year</SelectItem>
                 </SelectContent>
               </Select>
             </div>

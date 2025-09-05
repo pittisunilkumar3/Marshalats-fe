@@ -5,21 +5,34 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRegistration } from "@/contexts/RegistrationContext"
 
 export default function SelectBranchPage() {
   const router = useRouter()
-  const [formData, setFormData] = useState({
-    location: "",
-    branch: "",
-  })
+  const { registrationData, updateRegistrationData } = useRegistration()
+  const [location_id, setLocationId] = useState(registrationData.location_id || "")
+  const [branch_id, setBranchId] = useState(registrationData.branch_id || "")
 
-  const handleNextStep = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    handleContinue()
+  }
+
+  const handleContinue = () => {
+    // Save branch selection data to context
+    updateRegistrationData({
+      location_id,
+      branch_id
+    })
     router.push("/register/payment")
   }
 
   const handleSelectChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (field === "location_id") {
+      setLocationId(value)
+    } else if (field === "branch_id") {
+      setBranchId(value)
+    }
   }
 
   return (
@@ -44,7 +57,7 @@ export default function SelectBranchPage() {
           </div>
 
           {/* Branch Selection Form */}
-          <form onSubmit={handleNextStep} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Select Location */}
             <div className="relative">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
@@ -53,16 +66,16 @@ export default function SelectBranchPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </div>
-              <Select value={formData.location} onValueChange={(value) => handleSelectChange("location", value)}>
+              <Select value={location_id} onValueChange={(value) => handleSelectChange("location_id", value)}>
                 <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
                   <SelectValue placeholder="Select Location" className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="downtown" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Downtown</SelectItem>
-                  <SelectItem value="north-side" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">North Side</SelectItem>
-                  <SelectItem value="south-side" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">South Side</SelectItem>
-                  <SelectItem value="east-side" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">East Side</SelectItem>
-                  <SelectItem value="west-side" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">West Side</SelectItem>
+                  <SelectItem value="1" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Downtown</SelectItem>
+                  <SelectItem value="2" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">North Side</SelectItem>
+                  <SelectItem value="3" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">South Side</SelectItem>
+                  <SelectItem value="4" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">East Side</SelectItem>
+                  <SelectItem value="5" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">West Side</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -74,15 +87,15 @@ export default function SelectBranchPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
-              <Select value={formData.branch} onValueChange={(value) => handleSelectChange("branch", value)}>
+              <Select value={branch_id} onValueChange={(value) => handleSelectChange("branch_id", value)}>
                 <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
                   <SelectValue placeholder="Select Branch" className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="main-branch" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Main Branch</SelectItem>
-                  <SelectItem value="central-branch" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Central Branch</SelectItem>
-                  <SelectItem value="community-branch" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Community Branch</SelectItem>
-                  <SelectItem value="elite-branch" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Elite Branch</SelectItem>
+                  <SelectItem value="1" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Main Branch</SelectItem>
+                  <SelectItem value="2" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Central Branch</SelectItem>
+                  <SelectItem value="3" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Community Branch</SelectItem>
+                  <SelectItem value="4" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Elite Branch</SelectItem>
                 </SelectContent>
               </Select>
             </div>

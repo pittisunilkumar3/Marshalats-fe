@@ -1,18 +1,57 @@
 "use client"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { useRegistration } from "@/contexts/RegistrationContext"
 
 export default function PaymentConfirmationPage() {
   const router = useRouter()
+  const { registrationData, getApiPayload, clearRegistrationData } = useRegistration()
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
 
   const handleResendLink = () => {
     // Handle resend link logic
     console.log("Resending payment link...")
   }
 
-  const handleConfirm = () => {
-    // Route to account created page
-    router.push("/register/account-created")
+  const handleConfirm = async () => {
+    setIsLoading(true)
+    setError("")
+    
+    try {
+      // Get the API payload
+      const payload = getApiPayload()
+      
+      // Make API call to register endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Registration successful:', result)
+        
+        // Clear registration data
+        clearRegistrationData()
+        
+        // Route to account created page
+        router.push("/register/account-created")
+      } else {
+        const errorData = await response.json()
+        setError(errorData.message || 'Registration failed. Please try again.')
+        console.error('Registration failed:', errorData)
+      }
+    } catch (error) {
+      setError('Network error. Please check your connection and try again.')
+      console.error('Network error:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -71,7 +110,19 @@ export default function PaymentConfirmationPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-4">
+          <div className="flex flex-col space-y-4">
+            {/* Error Display */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="flex items-center space-x-3">
+                  <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-red-700 font-medium">{error}</p>
+                </div>
+              </div>
+            )}
+            
             <Button
               onClick={handleResendLink}
               variant="outline"
@@ -87,13 +138,25 @@ export default function PaymentConfirmationPage() {
             
             <Button
               onClick={handleConfirm}
-              className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-4 px-6 rounded-xl text-lg h-14 transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl"
+              disabled={isLoading}
+              className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-4 px-6 rounded-xl text-lg h-14 transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               <div className="flex items-center justify-center space-x-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>CONFIRM & CONTINUE</span>
+                {isLoading ? (
+                  <>
+                    <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>PROCESSING...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>CONFIRM & CONTINUE</span>
+                  </>
+                )}
               </div>
             </Button>
           </div>

@@ -1,0 +1,130 @@
+"use client"
+
+import React, { createContext, useContext, useState, useEffect } from 'react'
+
+interface RegistrationData {
+  // Personal Information
+  firstName: string
+  lastName: string
+  email: string
+  mobile: string
+  gender: string
+  dob: string
+  
+  // Course Information (IDs)
+  category_id: string
+  course_id: string
+  duration: string
+  
+  // Branch Information (IDs)
+  location_id: string
+  branch_id: string
+  
+  // Payment Information
+  paymentMethod: string
+  cardNumber: string
+  expiryDate: string
+  cvv: string
+  nameOnCard: string
+  
+  // Additional fields
+  password?: string
+  biometric_id?: string
+}
+
+interface RegistrationContextType {
+  registrationData: RegistrationData
+  updateRegistrationData: (data: Partial<RegistrationData>) => void
+  clearRegistrationData: () => void
+  getApiPayload: () => any
+}
+
+const defaultRegistrationData: RegistrationData = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  mobile: '',
+  gender: '',
+  dob: '',
+  category_id: '',
+  course_id: '',
+  duration: '',
+  location_id: '',
+  branch_id: '',
+  paymentMethod: '',
+  cardNumber: '',
+  expiryDate: '',
+  cvv: '',
+  nameOnCard: '',
+}
+
+const RegistrationContext = createContext<RegistrationContextType | undefined>(undefined)
+
+export const RegistrationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [registrationData, setRegistrationData] = useState<RegistrationData>(defaultRegistrationData)
+
+  // Load data from localStorage on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('registrationData')
+    if (savedData) {
+      try {
+        setRegistrationData(JSON.parse(savedData))
+      } catch (error) {
+        console.error('Error parsing saved registration data:', error)
+      }
+    }
+  }, [])
+
+  const updateRegistrationData = (data: Partial<RegistrationData>) => {
+    const updatedData = { ...registrationData, ...data }
+    setRegistrationData(updatedData)
+    localStorage.setItem('registrationData', JSON.stringify(updatedData))
+  }
+
+  const clearRegistrationData = () => {
+    setRegistrationData(defaultRegistrationData)
+    localStorage.removeItem('registrationData')
+  }
+
+  const getApiPayload = () => {
+    return {
+      email: registrationData.email,
+      phone: registrationData.mobile,
+      first_name: registrationData.firstName,
+      last_name: registrationData.lastName,
+      role: "student",
+      password: registrationData.password || undefined,
+      date_of_birth: registrationData.dob || undefined,
+      gender: registrationData.gender || undefined,
+      biometric_id: registrationData.biometric_id || undefined,
+      course: registrationData.category_id && registrationData.course_id && registrationData.duration ? {
+        category_id: String(registrationData.category_id),
+        course_id: String(registrationData.course_id),
+        duration: String(registrationData.duration)
+      } : undefined,
+      branch: registrationData.location_id && registrationData.branch_id ? {
+        location_id: String(registrationData.location_id),
+        branch_id: String(registrationData.branch_id)
+      } : undefined
+    }
+  }
+
+  return (
+    <RegistrationContext.Provider value={{
+      registrationData,
+      updateRegistrationData,
+      clearRegistrationData,
+      getApiPayload
+    }}>
+      {children}
+    </RegistrationContext.Provider>
+  )
+}
+
+export const useRegistration = () => {
+  const context = useContext(RegistrationContext)
+  if (context === undefined) {
+    throw new Error('useRegistration must be used within a RegistrationProvider')
+  }
+  return context
+}

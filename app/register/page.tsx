@@ -6,21 +6,33 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRegistration } from "@/contexts/RegistrationContext"
 import { Calendar } from "lucide-react"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const { registrationData, updateRegistrationData } = useRegistration()
+  
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    mobile: "",
-    gender: "",
-    dob: "",
+    firstName: registrationData.firstName || "",
+    lastName: registrationData.lastName || "",
+    email: registrationData.email || "",
+    mobile: registrationData.mobile || "",
+    gender: registrationData.gender || "",
+    dob: registrationData.dob || "",
   })
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
+    // Update registration context with form data
+    updateRegistrationData({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      mobile: formData.mobile,
+      gender: formData.gender,
+      dob: formData.dob,
+    })
     router.push("/register/select-course")
   }
 

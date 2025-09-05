@@ -1,17 +1,40 @@
 "use client"
 
 import type React from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import { useRegistration } from "@/contexts/RegistrationContext"
 
 export default function PaymentPage() {
   const router = useRouter()
+  const { registrationData, updateRegistrationData } = useRegistration()
   
   // Check if payment methods are enabled from environment variable
   const paymentMethodsEnabled = process.env.NEXT_PUBLIC_PAYMENT_METHODS_ENABLED === 'true'
 
+  const [selectedMethod, setSelectedMethod] = useState(registrationData.paymentMethod || "")
+  const [cardDetails, setCardDetails] = useState({
+    cardNumber: registrationData.cardNumber || "",
+    expiryDate: registrationData.expiryDate || "",
+    cvv: registrationData.cvv || "",
+    nameOnCard: registrationData.nameOnCard || "",
+  })
+
   const handleProceedToPay = (e: React.FormEvent) => {
     e.preventDefault()
+    // Save payment data to context
+    updateRegistrationData({
+      paymentMethod: selectedMethod,
+      cardNumber: cardDetails.cardNumber,
+      expiryDate: cardDetails.expiryDate,
+      cvv: cardDetails.cvv,
+      nameOnCard: cardDetails.nameOnCard,
+    })
     router.push("/register/payment-confirmation")
   }
 
