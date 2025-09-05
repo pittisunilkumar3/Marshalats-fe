@@ -11,13 +11,14 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, Search, ChevronDown, MoreHorizontal, ArrowLeft, Upload, Plus, X, Users, Star, Loader2 } from "lucide-react"
+import { ArrowLeft, Upload, Plus, X, Users, Star, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { courseAPI, mapFormDataToAPI } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
+import DashboardHeader from "@/components/dashboard-header"
 
 export default function CreateCoursePage() {
   const router = useRouter()
@@ -141,86 +142,7 @@ export default function CreateCoursePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="w-full px-4 lg:px-6">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo and Navigation */}
-            <div className="flex items-center space-x-4 lg:space-x-8 min-w-0">
-              <div className="flex items-center flex-shrink-0">
-                <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center">
-                  <span className="text-black font-bold text-lg">ROCK</span>
-                </div>
-              </div>
-
-              <nav className="hidden md:flex space-x-3 lg:space-x-6 overflow-x-auto">
-                <a
-                  href="#"
-                  onClick={() => router.push("/dashboard")}
-                  className="text-yellow-500 font-medium border-b-2 border-yellow-500 pb-4 text-sm whitespace-nowrap cursor-pointer"
-                >
-                  Dashboard
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Branches
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Masters
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Students
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Member ship
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Revenue
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Attendance
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Reports
-                </a>
-                <MoreHorizontal className="w-5 h-5 text-gray-400 flex-shrink-0" />
-              </nav>
-            </div>
-
-            {/* Search and User Controls */}
-            <div className="flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
-              <div className="relative hidden lg:block">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Try searching: User Name, Course Name, User ID"
-                  className="pl-10 w-64 xl:w-80 bg-gray-50"
-                />
-              </div>
-
-              <div className="relative">
-                <Bell className="w-5 h-5 text-gray-600" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full"></div>
-              </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src="/placeholder.svg" />
-                      <AvatarFallback>SA</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium hidden lg:inline">Super admin</span>
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader currentPage="Create Course" />
 
       <main className="w-full p-4 lg:p-6">
         {/* Header with Back Button */}
