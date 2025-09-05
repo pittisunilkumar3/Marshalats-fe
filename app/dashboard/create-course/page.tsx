@@ -11,14 +11,27 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, Search, ChevronDown, MoreHorizontal, ArrowLeft, Upload, Plus, X, Users, Star } from "lucide-react"
+import { Bell, Search, ChevronDown, MoreHorizontal, ArrowLeft, Upload, Plus, X, Users, Star, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
+import { courseAPI, mapFormDataToAPI } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function CreateCoursePage() {
   const router = useRouter()
+  const { toast } = useToast()
+  const { user, access_token, getAuthHeaders } = useAuth()
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  console.log('🔐 Authentication state:', {
+    hasUser: !!user,
+    hasToken: !!access_token,
+    tokenLength: access_token?.length || 0,
+    user: user ? { id: user.id, email: user.email, role: user.role } : null
+  })
   const [prerequisites, setPrerequisites] = useState<string[]>([])
   const [newPrerequisite, setNewPrerequisite] = useState("")
   const [formData, setFormData] = useState({
@@ -55,9 +68,70 @@ export default function CreateCoursePage() {
     setPrerequisites(prerequisites.filter((_, i) => i !== index))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setShowSuccessPopup(true)
+    setIsSubmitting(true)
+
+    try {
+      // Basic validation
+      if (!formData.courseTitle || !formData.courseCode || !formData.description) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required fields.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (!formData.price || parseFloat(formData.price) <= 0) {
+        toast({
+          title: "Validation Error", 
+          description: "Please enter a valid price.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Map form data to API format
+      const apiData = mapFormDataToAPI(formData, prerequisites)
+
+      // Use the JWT token from environment variables (working token)
+      const token = process.env.NEXT_PUBLIC_AUTH_TOKEN || access_token
+      
+      if (!token) {
+        toast({
+          title: "Authentication Error",
+          description: "No authentication token available. Please login again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      console.log('🔐 Using JWT token for authentication')
+      console.log('📍 API Base URL:', process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8001')
+      console.log('📋 Course data to send:', apiData)
+
+      // Call API with proper authentication
+      const response = await courseAPI.createCourse(apiData, token)
+
+      // Show success
+      toast({
+        title: "Success!",
+        description: `Course created successfully with ID: ${response.course_id}`,
+      })
+
+      setShowSuccessPopup(true)
+
+    } catch (error) {
+      console.error('Error creating course:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create course. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleSuccessOk = () => {
@@ -226,15 +300,15 @@ export default function CreateCoursePage() {
                             <SelectValue placeholder="Select martial arts style" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="kung-fu">Kung Fu</SelectItem>
-                            <SelectItem value="karate">Karate</SelectItem>
-                            <SelectItem value="taekwondo">Taekwondo</SelectItem>
-                            <SelectItem value="boxing">Boxing</SelectItem>
-                            <SelectItem value="jiu-jitsu">Brazilian Jiu-Jitsu</SelectItem>
-                            <SelectItem value="muay-thai">Muay Thai</SelectItem>
-                            <SelectItem value="judo">Judo</SelectItem>
-                            <SelectItem value="krav-maga">Krav Maga</SelectItem>
-                            <SelectItem value="mixed-martial-arts">Mixed Martial Arts</SelectItem>
+                            <SelectItem value="style-kung-fu-uuid">Kung Fu</SelectItem>
+                            <SelectItem value="style-karate-uuid">Karate</SelectItem>
+                            <SelectItem value="style-taekwondo-uuid">Taekwondo</SelectItem>
+                            <SelectItem value="style-boxing-uuid">Boxing</SelectItem>
+                            <SelectItem value="style-jiu-jitsu-uuid">Brazilian Jiu-Jitsu</SelectItem>
+                            <SelectItem value="style-muay-thai-uuid">Muay Thai</SelectItem>
+                            <SelectItem value="style-judo-uuid">Judo</SelectItem>
+                            <SelectItem value="style-krav-maga-uuid">Krav Maga</SelectItem>
+                            <SelectItem value="style-mixed-martial-arts-uuid">Mixed Martial Arts</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -249,10 +323,10 @@ export default function CreateCoursePage() {
                             <SelectValue placeholder="Select difficulty level" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="beginner">Beginner</SelectItem>
-                            <SelectItem value="intermediate">Intermediate</SelectItem>
-                            <SelectItem value="advanced">Advanced</SelectItem>
-                            <SelectItem value="expert">Expert</SelectItem>
+                            <SelectItem value="Beginner">Beginner</SelectItem>
+                            <SelectItem value="Intermediate">Intermediate</SelectItem>
+                            <SelectItem value="Advanced">Advanced</SelectItem>
+                            <SelectItem value="Expert">Expert</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -267,13 +341,13 @@ export default function CreateCoursePage() {
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="self-defense">Self Defense</SelectItem>
-                            <SelectItem value="fitness">Fitness & Conditioning</SelectItem>
-                            <SelectItem value="traditional">Traditional Martial Arts</SelectItem>
-                            <SelectItem value="competition">Competition Training</SelectItem>
-                            <SelectItem value="kids">Kids Program</SelectItem>
-                            <SelectItem value="adult">Adult Program</SelectItem>
-                            <SelectItem value="special-needs">Special Needs</SelectItem>
+                            <SelectItem value="category-self-defense-uuid">Self Defense</SelectItem>
+                            <SelectItem value="category-fitness-uuid">Fitness & Conditioning</SelectItem>
+                            <SelectItem value="category-traditional-uuid">Traditional Martial Arts</SelectItem>
+                            <SelectItem value="category-competition-uuid">Competition Training</SelectItem>
+                            <SelectItem value="category-kids-uuid">Kids Program</SelectItem>
+                            <SelectItem value="category-adult-uuid">Adult Program</SelectItem>
+                            <SelectItem value="category-special-needs-uuid">Special Needs</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -288,10 +362,10 @@ export default function CreateCoursePage() {
                             <SelectValue placeholder="Select instructor" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="sensei-john">Sensei John Martinez</SelectItem>
-                            <SelectItem value="master-chen">Master Chen Wei</SelectItem>
-                            <SelectItem value="coach-sarah">Coach Sarah Williams</SelectItem>
-                            <SelectItem value="sifu-david">Sifu David Thompson</SelectItem>
+                            <SelectItem value="instructor-john-uuid">Sensei John Martinez</SelectItem>
+                            <SelectItem value="instructor-chen-uuid">Master Chen Wei</SelectItem>
+                            <SelectItem value="instructor-sarah-uuid">Coach Sarah Williams</SelectItem>
+                            <SelectItem value="instructor-david-uuid">Sifu David Thompson</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -441,10 +515,26 @@ export default function CreateCoursePage() {
                   {/* Submit Button */}
                   <div className="pt-6 border-t">
                     <div className="flex space-x-4">
-                      <Button type="submit" className="bg-yellow-400 hover:bg-yellow-500 text-black px-8">
-                        Create Course
+                      <Button 
+                        type="submit" 
+                        className="bg-yellow-400 hover:bg-yellow-500 text-black px-8"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Creating Course...
+                          </>
+                        ) : (
+                          'Create Course'
+                        )}
                       </Button>
-                      <Button type="button" variant="outline" onClick={() => router.push("/dashboard/courses")}>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => router.push("/dashboard/courses")}
+                        disabled={isSubmitting}
+                      >
                         Cancel
                       </Button>
                     </div>
