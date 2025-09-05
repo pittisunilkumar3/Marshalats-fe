@@ -18,6 +18,7 @@ export default function SuperAdminDashboard() {
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
+      localStorage.removeItem("user");
       router.replace("/login");
     }
   };

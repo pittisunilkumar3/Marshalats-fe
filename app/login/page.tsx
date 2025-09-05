@@ -24,7 +24,24 @@ function LoginFormContent() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("token");
-      if (token) {
+      const user = localStorage.getItem("user");
+      
+      if (token && user) {
+        try {
+          const userData = JSON.parse(user);
+          if (userData.role === "student") {
+            router.replace("/student-dashboard");
+          } else if (userData.role === "coach") {
+            router.replace("/coach-dashboard");
+          } else {
+            router.replace("/dashboard");
+          }
+        } catch (error) {
+          // If user data is corrupted, just redirect to regular dashboard
+          router.replace("/dashboard");
+        }
+      } else if (token) {
+        // If only token exists without user data, redirect to regular dashboard
         router.replace("/dashboard");
       }
     }
@@ -60,6 +77,8 @@ function LoginFormContent() {
       });
       
       const data = await res.json();
+      console.log("Login response:", data); // Debug log
+      
       if (!res.ok) {
         setError(data.message || "Login failed");
         // Reset reCAPTCHA on error
@@ -71,10 +90,35 @@ function LoginFormContent() {
       }
 
       // Save token to localStorage if present
-      if (data.token) {
-        localStorage.setItem("token", data.token);
+      if (data.access_token) {
+        localStorage.setItem("token", data.access_token);
+        console.log("Token saved:", data.access_token); // Debug log
+      } else {
+        console.warn("No access_token in response"); // Debug log
       }
-      router.push("/dashboard");
+      
+      // Save user data if present
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+        console.log("User data saved:", data.user); // Debug log
+      } else {
+        console.warn("No user data in response"); // Debug log
+      }
+      
+      // Redirect based on user role
+      const userRole = data.user?.role || data.role;
+      console.log("User role:", userRole); // Debug log
+      
+      if (userRole === "student") {
+        console.log("Redirecting to student dashboard"); // Debug log
+        router.push("/student-dashboard");
+      } else if (userRole === "coach") {
+        console.log("Redirecting to coach dashboard"); // Debug log
+        router.push("/coach-dashboard");
+      } else {
+        console.log("Redirecting to admin dashboard"); // Debug log
+        router.push("/dashboard");
+      }
     } catch (err) {
       setError("An error occurred during login");
       // Reset reCAPTCHA on error
