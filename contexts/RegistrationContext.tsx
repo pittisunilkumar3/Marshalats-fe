@@ -89,14 +89,16 @@ export const RegistrationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const getApiPayload = () => {
     return {
       email: registrationData.email,
+      password: registrationData.password || undefined,
       phone: registrationData.mobile,
       first_name: registrationData.firstName,
       last_name: registrationData.lastName,
+      full_name: `${registrationData.firstName} ${registrationData.lastName}`,
       role: "student",
-      password: registrationData.password || undefined,
+      biometric_id: registrationData.biometric_id || undefined,
+      is_active: true,
       date_of_birth: registrationData.dob || undefined,
       gender: registrationData.gender || undefined,
-      biometric_id: registrationData.biometric_id || undefined,
       course: registrationData.category_id && registrationData.course_id && registrationData.duration ? {
         category_id: String(registrationData.category_id),
         course_id: String(registrationData.course_id),

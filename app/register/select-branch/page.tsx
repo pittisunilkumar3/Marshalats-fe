@@ -13,6 +13,40 @@ export default function SelectBranchPage() {
   const [location_id, setLocationId] = useState(registrationData.location_id || "")
   const [branch_id, setBranchId] = useState(registrationData.branch_id || "")
 
+  // Temporary locations data
+  const tempLocations = [
+    { id: "hyderabad", name: "Hyderabad" },
+    { id: "bangalore", name: "Bangalore" },
+    { id: "chennai", name: "Chennai" },
+    { id: "mumbai", name: "Mumbai" },
+    { id: "delhi", name: "Delhi" },
+    { id: "pune", name: "Pune" },
+    { id: "kolkata", name: "Kolkata" },
+    { id: "ahmedabad", name: "Ahmedabad" }
+  ]
+
+  // Temporary branches data
+  const tempBranches = [
+    { id: "hyd-branch-001", name: "Hyderabad Main Branch", location_id: "hyderabad", address: "Banjara Hills, Hyderabad" },
+    { id: "hyd-branch-002", name: "Hyderabad HITEC City", location_id: "hyderabad", address: "HITEC City, Hyderabad" },
+    { id: "blr-branch-001", name: "Bangalore Koramangala", location_id: "bangalore", address: "Koramangala, Bangalore" },
+    { id: "blr-branch-002", name: "Bangalore Whitefield", location_id: "bangalore", address: "Whitefield, Bangalore" },
+    { id: "che-branch-001", name: "Chennai T Nagar", location_id: "chennai", address: "T Nagar, Chennai" },
+    { id: "che-branch-002", name: "Chennai OMR", location_id: "chennai", address: "OMR, Chennai" },
+    { id: "mum-branch-001", name: "Mumbai Andheri", location_id: "mumbai", address: "Andheri West, Mumbai" },
+    { id: "mum-branch-002", name: "Mumbai Bandra", location_id: "mumbai", address: "Bandra West, Mumbai" },
+    { id: "del-branch-001", name: "Delhi CP", location_id: "delhi", address: "Connaught Place, Delhi" },
+    { id: "del-branch-002", name: "Delhi Gurgaon", location_id: "delhi", address: "Gurgaon, Delhi NCR" },
+    { id: "pun-branch-001", name: "Pune FC Road", location_id: "pune", address: "FC Road, Pune" },
+    { id: "kol-branch-001", name: "Kolkata Salt Lake", location_id: "kolkata", address: "Salt Lake City, Kolkata" },
+    { id: "ahm-branch-001", name: "Ahmedabad SG Highway", location_id: "ahmedabad", address: "SG Highway, Ahmedabad" }
+  ]
+
+  // Filter branches based on selected location
+  const filteredBranches = location_id 
+    ? tempBranches.filter(branch => branch.location_id === location_id)
+    : tempBranches
+
     const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     handleContinue()
@@ -71,11 +105,11 @@ export default function SelectBranchPage() {
                   <SelectValue placeholder="Select Location" className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="1" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Downtown</SelectItem>
-                  <SelectItem value="2" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">North Side</SelectItem>
-                  <SelectItem value="3" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">South Side</SelectItem>
-                  <SelectItem value="4" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">East Side</SelectItem>
-                  <SelectItem value="5" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">West Side</SelectItem>
+                  {tempLocations.map((location) => (
+                    <SelectItem key={location.id} value={location.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                      {location.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -92,10 +126,11 @@ export default function SelectBranchPage() {
                   <SelectValue placeholder="Select Branch" className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="1" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Main Branch</SelectItem>
-                  <SelectItem value="2" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Central Branch</SelectItem>
-                  <SelectItem value="3" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Community Branch</SelectItem>
-                  <SelectItem value="4" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Elite Branch</SelectItem>
+                  {filteredBranches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                      {branch.name} - {branch.address}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

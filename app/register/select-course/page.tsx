@@ -17,6 +17,42 @@ export default function SelectCoursePage() {
     duration: registrationData.duration || "",
   })
 
+  // Temporary categories data
+  const tempCategories = [
+    { id: "martial-arts", name: "Martial Arts" },
+    { id: "fitness", name: "Fitness" },
+    { id: "self-defense", name: "Self Defense" },
+    { id: "kids-programs", name: "Kids Programs" }
+  ]
+
+  // Temporary courses data
+  const tempCourses = [
+    { id: "karate-101", name: "Basic Karate", category_id: "martial-arts", duration: "3-months" },
+    { id: "karate-201", name: "Advanced Karate", category_id: "martial-arts", duration: "6-months" },
+    { id: "taekwondo-101", name: "Basic Taekwondo", category_id: "martial-arts", duration: "3-months" },
+    { id: "kickboxing-101", name: "Kickboxing Fundamentals", category_id: "fitness", duration: "1-month" },
+    { id: "kickboxing-201", name: "Advanced Kickboxing", category_id: "fitness", duration: "3-months" },
+    { id: "selfdef-101", name: "Women's Self Defense", category_id: "self-defense", duration: "1-month" },
+    { id: "selfdef-201", name: "Street Self Defense", category_id: "self-defense", duration: "3-months" },
+    { id: "kids-karate", name: "Kids Karate (5-12 years)", category_id: "kids-programs", duration: "6-months" },
+    { id: "kids-taekwondo", name: "Kids Taekwondo (8-15 years)", category_id: "kids-programs", duration: "6-months" },
+    { id: "mma-basics", name: "MMA Basics", category_id: "martial-arts", duration: "6-months" },
+    { id: "fitness-bootcamp", name: "Fitness Bootcamp", category_id: "fitness", duration: "1-month" }
+  ]
+
+  // Temporary duration options
+  const tempDurations = [
+    { id: "1-month", name: "1 Month" },
+    { id: "3-months", name: "3 Months" },
+    { id: "6-months", name: "6 Months" },
+    { id: "12-months", name: "12 Months" }
+  ]
+
+  // Filter courses based on selected category
+  const filteredCourses = formData.category_id 
+    ? tempCourses.filter(course => course.category_id === formData.category_id)
+    : tempCourses
+
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
     // Update registration context with course data
@@ -67,10 +103,11 @@ export default function SelectCoursePage() {
                   <SelectValue placeholder="Select Category" className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="1" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Martial Arts</SelectItem>
-                  <SelectItem value="2" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Fitness</SelectItem>
-                  <SelectItem value="3" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Dance</SelectItem>
-                  <SelectItem value="4" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Self Defense</SelectItem>
+                  {tempCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id} className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                      {category.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -87,11 +124,11 @@ export default function SelectCoursePage() {
                   <SelectValue placeholder="Choose Course" className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="1" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Karate</SelectItem>
-                  <SelectItem value="2" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Taekwondo</SelectItem>
-                  <SelectItem value="3" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Kung Fu</SelectItem>
-                  <SelectItem value="4" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Boxing</SelectItem>
-                  <SelectItem value="5" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">Jiu Jitsu</SelectItem>
+                  {filteredCourses.map((course) => (
+                    <SelectItem key={course.id} value={course.id} className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                      {course.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -108,10 +145,11 @@ export default function SelectCoursePage() {
                   <SelectValue placeholder="Select Duration" className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="1" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">1 Month</SelectItem>
-                  <SelectItem value="3" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">3 Months</SelectItem>
-                  <SelectItem value="6" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">6 Months</SelectItem>
-                  <SelectItem value="12" className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">1 Year</SelectItem>
+                  {tempDurations.map((duration) => (
+                    <SelectItem key={duration.id} value={duration.id} className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                      {duration.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
