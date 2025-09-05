@@ -14,32 +14,77 @@ export default function CoachDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem("token")
+    // Check if user is logged in - look for access_token (used by coach login)
+    const token = localStorage.getItem("access_token") || localStorage.getItem("token")
+    const coachData = localStorage.getItem("coach")
     const user = localStorage.getItem("user")
+    const tokenExpiration = localStorage.getItem("token_expiration")
     
-    console.log("Coach dashboard - Token:", token ? "Present" : "Missing"); // Debug log
+    console.log("Coach dashboard - Access Token:", token ? "Present" : "Missing"); // Debug log
+    console.log("Coach dashboard - Coach data:", coachData ? "Present" : "Missing"); // Debug log
     console.log("Coach dashboard - User data:", user ? "Present" : "Missing"); // Debug log
+    console.log("Coach dashboard - Token expiration:", tokenExpiration); // Debug log
     
     if (!token) {
-      console.log("No token found, redirecting to login"); // Debug log
-      router.push("/login")
+      console.log("No token found, redirecting to coach login"); // Debug log
+      router.push("/coach/login")
       return
     }
 
-    // Try to get user data from localStorage
-    if (user) {
+    // Check token expiration
+    if (tokenExpiration) {
+      const expirationTime = parseInt(tokenExpiration)
+      if (Date.now() >= expirationTime) {
+        console.log("Token expired, clearing session and redirecting"); // Debug log
+        localStorage.removeItem("access_token")
+        localStorage.removeItem("token_type")
+        localStorage.removeItem("expires_in")
+        localStorage.removeItem("token_expiration")
+        localStorage.removeItem("coach")
+        localStorage.removeItem("user")
+        router.push("/coach/login")
+        return
+      }
+    }
+
+    // Try to get coach and user data from localStorage
+    if (coachData || user) {
       try {
-        const userData = JSON.parse(user)
-        console.log("Parsed user data:", userData); // Debug log
+        // Prefer coach data over user data
+        const userData = coachData ? JSON.parse(coachData) : (user ? JSON.parse(user) : null)
+        console.log("Parsed coach/user data:", userData); // Debug log
+        
+        if (!userData) {
+          console.log("No valid user data found"); // Debug log
+          setCoachData({
+            name: "Coach",
+            email: "coach@example.com",
+            specialization: "Martial Arts",
+            experience: "5 years",
+            totalStudents: 25,
+            todayClasses: 3,
+            thisWeekClasses: 12,
+            avgAttendance: "78%",
+            upcomingClass: "Karate - Advanced (2:00 PM)",
+            recentAchievements: [
+              "Student John Doe achieved Yellow Belt",
+              "Class attendance improved by 15%",
+              "New beginner batch started"
+            ]
+          })
+          setLoading(false)
+          return
+        }
         
         // Check if user is actually a coach
         if (userData.role !== "coach") {
           console.log("User is not a coach, redirecting to appropriate dashboard"); // Debug log
           if (userData.role === "student") {
             router.push("/student-dashboard")
-          } else {
+          } else if (userData.role === "superadmin") {
             router.push("/dashboard")
+          } else {
+            router.push("/login")
           }
           return
         }
@@ -47,8 +92,8 @@ export default function CoachDashboard() {
         setCoachData({
           name: userData.full_name || `${userData.first_name} ${userData.last_name}` || userData.name || "Coach",
           email: userData.email || "coach@example.com",
-          specialization: userData.specialization || "Martial Arts",
-          experience: userData.experience || "5 years",
+          specialization: userData.professional_info?.specialization || userData.specialization || "Martial Arts",
+          experience: userData.professional_info?.years_of_experience || userData.experience || "5 years",
           totalStudents: 25, // This would come from students API
           todayClasses: 3, // This would come from schedule API
           thisWeekClasses: 12, // This would come from schedule API
@@ -104,9 +149,18 @@ export default function CoachDashboard() {
   }, [router])
 
   const handleLogout = () => {
-    localStorage.removeItem("token")
+    // Clear all authentication data including coach-specific tokens
+    localStorage.removeItem("access_token")
+    localStorage.removeItem("token_type")
+    localStorage.removeItem("expires_in")
+    localStorage.removeItem("token_expiration")
+    localStorage.removeItem("coach")
     localStorage.removeItem("user")
-    router.push("/login")
+    // Also clear legacy token if exists
+    localStorage.removeItem("token")
+    
+    console.log("Coach logged out, redirecting to coach login"); // Debug log
+    router.push("/coach/login")
   }
 
   if (loading) {

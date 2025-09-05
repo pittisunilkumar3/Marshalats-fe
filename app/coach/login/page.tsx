@@ -24,17 +24,35 @@ function CoachLoginFormContent() {
   // Redirect to dashboard if already logged in as coach
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      const user = localStorage.getItem("user");
+      const token = localStorage.getItem("access_token");
+      const coachData = localStorage.getItem("coach");
+      const tokenExpiration = localStorage.getItem("token_expiration");
       
-      if (token && user) {
+      if (token && coachData && tokenExpiration) {
         try {
-          const userData = JSON.parse(user);
-          if (userData.role === "coach") {
+          const coach = JSON.parse(coachData);
+          const expirationTime = parseInt(tokenExpiration);
+          
+          // Check if token is still valid and user is a coach
+          if (coach.role === "coach" && Date.now() < expirationTime) {
+            console.log("Valid coach session found, redirecting to dashboard");
             router.replace("/coach-dashboard");
+          } else {
+            // Clear expired or invalid session
+            console.log("Coach session expired or invalid, clearing data");
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("token_type");
+            localStorage.removeItem("expires_in");
+            localStorage.removeItem("token_expiration");
+            localStorage.removeItem("coach");
+            localStorage.removeItem("user");
           }
         } catch (error) {
-          console.error("Error parsing user data:", error);
+          console.error("Error parsing coach data:", error);
+          // Clear corrupted data
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("coach");
+          localStorage.removeItem("user");
         }
       }
     }
@@ -58,16 +76,24 @@ function CoachLoginFormContent() {
         }
       }
 
+      // Prepare request body according to your API specification
       const requestBody: any = { 
         email, 
-        password,
-        role: "coach" // Specify role for coach login
+        password
       };
+      
+      // Add reCAPTCHA token if available
       if (recaptchaToken) {
         requestBody.recaptchaToken = recaptchaToken;
       }
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/coach/login`, {
+      console.log("Coach login request:", {
+        url: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/login`,
+        body: { ...requestBody, password: "***hidden***" }
+      });
+
+      // Call the coach login API endpoint
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody)
@@ -77,7 +103,17 @@ function CoachLoginFormContent() {
       console.log("Coach login response:", data);
       
       if (!res.ok) {
-        setError(data.message || "Login failed");
+        setError(data.message || `Login failed (${res.status})`);
+        if (isEnabled) {
+          resetRecaptcha();
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Validate response structure according to your API specification
+      if (!data.access_token || !data.coach) {
+        setError("Invalid response from server");
         if (isEnabled) {
           resetRecaptcha();
         }
@@ -86,7 +122,7 @@ function CoachLoginFormContent() {
       }
 
       // Verify that the user is actually a coach
-      if (data.user?.role !== "coach") {
+      if (data.coach?.role !== "coach") {
         setError("Access denied. Coach credentials required.");
         if (isEnabled) {
           resetRecaptcha();
@@ -95,19 +131,57 @@ function CoachLoginFormContent() {
         return;
       }
 
-      // Save token and user data
-      if (data.access_token) {
-        localStorage.setItem("token", data.access_token);
-      }
+      // Store authentication data in localStorage
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem("token_type", data.token_type || "bearer");
+      localStorage.setItem("expires_in", data.expires_in?.toString() || "86400");
       
-      if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-      }
+      // Calculate and store token expiration time
+      const expirationTime = Date.now() + ((data.expires_in || 86400) * 1000);
+      localStorage.setItem("token_expiration", expirationTime.toString());
+      
+      // Store comprehensive coach data
+      const coachData = {
+        id: data.coach.id,
+        personal_info: data.coach.personal_info,
+        contact_info: data.coach.contact_info,
+        address_info: data.coach.address_info,
+        professional_info: data.coach.professional_info,
+        areas_of_expertise: data.coach.areas_of_expertise,
+        email: data.coach.email,
+        phone: data.coach.phone,
+        first_name: data.coach.first_name,
+        last_name: data.coach.last_name,
+        full_name: data.coach.full_name,
+        role: data.coach.role,
+        is_active: data.coach.is_active,
+        created_at: data.coach.created_at,
+        updated_at: data.coach.updated_at
+      };
+      
+      localStorage.setItem("coach", JSON.stringify(coachData));
+      localStorage.setItem("user", JSON.stringify({
+        id: data.coach.id,
+        email: data.coach.email,
+        full_name: data.coach.full_name,
+        role: data.coach.role,
+        is_active: data.coach.is_active
+      }));
+      
+      console.log("Coach login successful:", {
+        coach_id: data.coach.id,
+        full_name: data.coach.full_name,
+        email: data.coach.email,
+        role: data.coach.role,
+        access_token: data.access_token.substring(0, 20) + "...",
+        expires_in: data.expires_in
+      });
       
       // Redirect to coach dashboard
       router.push("/coach-dashboard");
     } catch (err) {
-      setError("An error occurred during login");
+      console.error("Coach login error:", err);
+      setError("An error occurred during login. Please check your connection and try again.");
       if (isEnabled) {
         resetRecaptcha();
       }
@@ -275,6 +349,27 @@ function CoachLoginFormContent() {
             >
               Admin Login
             </Link>
+          </div>
+
+          {/* Debug Information */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <h3 className="font-medium text-gray-700 mb-2 text-sm">API Debug Info</h3>
+            <div className="space-y-1 text-xs text-gray-600 font-mono">
+              <p><strong>POST</strong> /api/coaches/login</p>
+              <p><strong>Endpoint:</strong> {process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/login</p>
+              <p><strong>Expected:</strong> access_token + coach object</p>
+              <p><strong>Storage:</strong> access_token, coach, user</p>
+            </div>
+          </div>
+
+          {/* Current Session Debug */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <h3 className="font-medium text-blue-700 mb-2 text-sm">Current Session</h3>
+            <div className="space-y-1 text-xs text-blue-600 font-mono">
+              <p><strong>Access Token:</strong> {typeof window !== "undefined" && localStorage.getItem("access_token") ? "Present" : "Missing"}</p>
+              <p><strong>Coach Data:</strong> {typeof window !== "undefined" && localStorage.getItem("coach") ? "Present" : "Missing"}</p>
+              <p><strong>Token Expiry:</strong> {typeof window !== "undefined" && localStorage.getItem("token_expiration") ? new Date(parseInt(localStorage.getItem("token_expiration") || "0")).toLocaleString() : "None"}</p>
+            </div>
           </div>
 
           {/* Back to Main Site */}
