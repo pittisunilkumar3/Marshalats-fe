@@ -31,18 +31,10 @@ function LoginFormContent() {
           const userData = JSON.parse(user);
           if (userData.role === "student") {
             router.replace("/student-dashboard");
-          } else if (userData.role === "coach") {
-            router.replace("/coach-dashboard");
-          } else {
-            router.replace("/dashboard");
           }
         } catch (error) {
-          // If user data is corrupted, just redirect to regular dashboard
-          router.replace("/dashboard");
+          console.error("Error parsing user data:", error);
         }
-      } else if (token) {
-        // If only token exists without user data, redirect to regular dashboard
-        router.replace("/dashboard");
       }
     }
   }, [router]);
@@ -65,10 +57,19 @@ function LoginFormContent() {
         }
       }
 
-      const requestBody: any = { email, password };
+      const requestBody: any = { 
+        email, 
+        password,
+        role: "student" // Specify role for student login
+      };
       if (recaptchaToken) {
         requestBody.recaptchaToken = recaptchaToken;
       }
+
+      console.log("Student login request:", {
+        url: `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/login`,
+        body: { ...requestBody, password: "***hidden***" }
+      });
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/login`, {
         method: "POST",
@@ -77,10 +78,14 @@ function LoginFormContent() {
       });
       
       const data = await res.json();
-      console.log("Login response:", data); // Debug log
+      console.log("Student login response:", {
+        status: res.status,
+        ok: res.ok,
+        data: data
+      });
       
       if (!res.ok) {
-        setError(data.message || "Login failed");
+        setError(data.message || `Login failed (${res.status})`);
         // Reset reCAPTCHA on error
         if (isEnabled) {
           resetRecaptcha();
@@ -89,38 +94,57 @@ function LoginFormContent() {
         return;
       }
 
+      // Check response format and handle different response structures
+      let userInfo = null;
+      let token = null;
+
+      // Handle different response formats
+      if (data.user && data.access_token) {
+        // Format 1: { user: {...}, access_token: "..." }
+        userInfo = data.user;
+        token = data.access_token;
+      } else if (data.data && data.data.user && data.data.token) {
+        // Format 2: { data: { user: {...}, token: "..." } }
+        userInfo = data.data.user;
+        token = data.data.token;
+      } else if (data.status === "success" && data.data) {
+        // Format 3: { status: "success", data: { ... } }
+        userInfo = data.data;
+        token = data.data.token || data.data.access_token;
+      }
+
+      // Verify that the user is actually a student
+      if (userInfo && userInfo.role !== "student") {
+        setError("Access denied. Student credentials required.");
+        if (isEnabled) {
+          resetRecaptcha();
+        }
+        setLoading(false);
+        return;
+      }
+
       // Save token to localStorage if present
-      if (data.access_token) {
-        localStorage.setItem("token", data.access_token);
-        console.log("Token saved:", data.access_token); // Debug log
+      if (token) {
+        localStorage.setItem("token", token);
+        console.log("Token saved successfully");
       } else {
-        console.warn("No access_token in response"); // Debug log
+        console.warn("No token received in response");
       }
       
       // Save user data if present
-      if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-        console.log("User data saved:", data.user); // Debug log
+      if (userInfo) {
+        localStorage.setItem("user", JSON.stringify(userInfo));
+        console.log("User data saved:", userInfo);
       } else {
-        console.warn("No user data in response"); // Debug log
+        console.warn("No user data received in response");
       }
       
-      // Redirect based on user role
-      const userRole = data.user?.role || data.role;
-      console.log("User role:", userRole); // Debug log
-      
-      if (userRole === "student") {
-        console.log("Redirecting to student dashboard"); // Debug log
-        router.push("/student-dashboard");
-      } else if (userRole === "coach") {
-        console.log("Redirecting to coach dashboard"); // Debug log
-        router.push("/coach-dashboard");
-      } else {
-        console.log("Redirecting to admin dashboard"); // Debug log
-        router.push("/dashboard");
-      }
+      // Redirect to student dashboard
+      console.log("Redirecting to student dashboard");
+      router.push("/student-dashboard");
     } catch (err) {
-      setError("An error occurred during login");
+      console.error("Student login error:", err);
+      setError("An error occurred during login. Please check your connection and try again.");
       // Reset reCAPTCHA on error
       if (isEnabled) {
         resetRecaptcha();
@@ -147,8 +171,8 @@ function LoginFormContent() {
         <div className="w-full max-w-md space-y-6">
           {/* Header */}
           <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-black">LOGIN</h1>
-            <p className="text-gray-500 text-sm">{"How to I get started lorem ipsum dolor at?"}</p>
+            <h1 className="text-3xl font-bold text-black">STUDENT LOGIN</h1>
+            <p className="text-gray-500 text-sm">Access your martial arts training dashboard</p>
           </div>
 
           {/* Login Form */}
@@ -291,6 +315,36 @@ function LoginFormContent() {
                 </div>
                 <span className="text-sm font-medium">Facebook</span>
               </Button>
+            </div>
+          </div>
+
+          {/* Login Type Selection */}
+          <div className="pt-4 border-t border-gray-200">
+            <p className="text-center text-sm text-gray-600 mb-4">Different role? Choose your login type:</p>
+            <div className="flex justify-center space-x-6 text-sm">
+              <Link 
+                href="/coach/login" 
+                className="text-orange-600 hover:text-orange-800 font-medium transition-colors"
+              >
+                Coach Login
+              </Link>
+              <span className="text-gray-300">|</span>
+              <Link 
+                href="/superadmin/login" 
+                className="text-yellow-600 hover:text-yellow-800 font-medium transition-colors"
+              >
+                Admin Login
+              </Link>
+            </div>
+          </div>
+
+          {/* Debug Information */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <h3 className="font-medium text-gray-700 mb-2 text-sm">Debug Info</h3>
+            <div className="space-y-1 text-xs text-gray-600 font-mono">
+              <p><strong>API:</strong> {process.env.NEXT_PUBLIC_BACKEND_URL}/student/login</p>
+              <p><strong>Expected Response:</strong> user + access_token</p>
+              <p><strong>Role:</strong> student</p>
             </div>
           </div>
         </div>
