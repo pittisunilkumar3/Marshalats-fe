@@ -5,14 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, Search, ChevronDown, MoreHorizontal, Star, Users, BookOpen } from "lucide-react"
+import { Bell, Search, ChevronDown, MoreHorizontal, Star, Users, BookOpen, Menu, X } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Logout handler
   const handleLogout = () => {
@@ -23,46 +26,173 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  // Mobile navigation handler
+  const handleMobileNavigation = (path: string) => {
+    router.push(path);
+    setIsMobileMenuOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b">
         <div className="w-full px-4 lg:px-6">
           <div className="flex justify-between items-center h-16">
             {/* Logo and Navigation */}
-            <div className="flex items-center space-x-4 lg:space-x-8 min-w-0">
-              <div className="flex items-center flex-shrink-0">
-                <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center">
-                  <span className="text-black font-bold text-lg">ROCK</span>
-                </div>
+            <div className="flex items-center space-x-4 lg:space-x-6 min-w-0 flex-1">
+              <div className="flex items-center space-x-3 flex-shrink-0">
+                <img
+                  src="/placeholder-logo.svg"
+                  alt="Logo"
+                  className="w-8 h-8"
+                />
+                <span className="font-bold text-xl hidden lg:inline">Rock</span>
               </div>
 
-              <nav className="hidden md:flex space-x-3 lg:space-x-6 overflow-x-auto">
-                <a
-                  href="#"
-                  className="text-yellow-500 font-medium border-b-2 border-yellow-500 pb-4 text-sm whitespace-nowrap"
+              {/* Mobile Menu Button */}
+              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="lg:hidden"
+                  >
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-64 p-0">
+                  <div className="flex flex-col h-full">
+                    <div className="p-4 border-b">
+                      <div className="flex items-center space-x-3">
+                        <img
+                          src="/placeholder-logo.svg"
+                          alt="Logo"
+                          className="w-8 h-8"
+                        />
+                        <span className="font-bold text-xl">Rock</span>
+                      </div>
+                    </div>
+                    <nav className="flex-1 p-4">
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => handleMobileNavigation("/dashboard")}
+                          className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm font-medium"
+                        >
+                          Dashboard
+                        </button>
+                        <button
+                          onClick={() => handleMobileNavigation("/dashboard/branches")}
+                          className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm"
+                        >
+                          Branches
+                        </button>
+                        <button
+                          onClick={() => handleMobileNavigation("/dashboard/coaches")}
+                          className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm"
+                        >
+                          Masters
+                        </button>
+                        <button
+                          onClick={() => handleMobileNavigation("/dashboard/students")}
+                          className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm"
+                        >
+                          Students
+                        </button>
+                        <button
+                          onClick={() => handleMobileNavigation("/dashboard/coaches")}
+                          className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm"
+                        >
+                          Coaches
+                        </button>
+                        <button
+                          onClick={() => handleMobileNavigation("/dashboard/courses")}
+                          className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm"
+                        >
+                          Courses
+                        </button>
+                        <div className="px-3 py-2">
+                          <p className="text-sm font-medium text-gray-500 mb-2">Attendance</p>
+                          <button
+                            onClick={() => handleMobileNavigation("/dashboard/attendance/students")}
+                            className="w-full text-left px-3 py-1 rounded-md hover:bg-gray-100 text-sm text-gray-600"
+                          >
+                            Student Attendance
+                          </button>
+                          <button
+                            onClick={() => handleMobileNavigation("/dashboard/attendance/coaches")}
+                            className="w-full text-left px-3 py-1 rounded-md hover:bg-gray-100 text-sm text-gray-600"
+                          >
+                            Coach Attendance
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => handleMobileNavigation("/dashboard/reports")}
+                          className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm"
+                        >
+                          Reports
+                        </button>
+                        <div className="px-3 py-2">
+                          <p className="text-sm font-medium text-gray-500 mb-2">More</p>
+                          <button
+                            onClick={() => handleMobileNavigation("/dashboard/payment-tracking")}
+                            className="w-full text-left px-3 py-1 rounded-md hover:bg-gray-100 text-sm text-gray-600"
+                          >
+                            Payment Tracking
+                          </button>
+                          <button
+                            onClick={() => handleMobileNavigation("/dashboard/operations")}
+                            className="w-full text-left px-3 py-1 rounded-md hover:bg-gray-100 text-sm text-gray-600"
+                          >
+                            Operations
+                          </button>
+                        </div>
+                      </div>
+                    </nav>
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6 overflow-x-auto">
+                <button
+                  onClick={() => router.push("/dashboard")}
+                  className="text-gray-900 hover:text-gray-600 pb-4 text-sm font-medium whitespace-nowrap border-b-2 border-yellow-400 cursor-pointer"
                 >
                   Dashboard
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
+                </button>
+                <button 
+                  onClick={() => router.push("/dashboard/branches")}
+                  className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap cursor-pointer"
+                >
                   Branches
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
+                </button>
+                <button 
+                  onClick={() => router.push("/dashboard/coaches")}
+                  className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap cursor-pointer"
+                >
                   Masters
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
+                </button>
+                <button 
+                  onClick={() => router.push("/dashboard/students")}
+                  className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap cursor-pointer"
+                >
                   Students
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Member ship
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Revenue
-                </a>
+                </button>
+                <button 
+                  onClick={() => router.push("/dashboard/coaches")}
+                  className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap cursor-pointer"
+                >
+                  Coaches
+                </button>
+                <button 
+                  onClick={() => router.push("/dashboard/courses")}
+                  className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap cursor-pointer"
+                >
+                  Courses
+                </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap flex items-center space-x-1">
-                      <span>Attendance</span>
-                      <ChevronDown className="w-3 h-3" />
+                    <button className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap flex items-center cursor-pointer">
+                      Attendance
+                      <ChevronDown className="w-3 h-3 ml-1" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
@@ -74,12 +204,15 @@ export default function SuperAdminDashboard() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
+                <button 
+                  onClick={() => router.push("/dashboard/reports")}
+                  className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap cursor-pointer"
+                >
                   Reports
-                </a>
+                </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="text-gray-400 hover:text-gray-600 p-1">
+                    <button className="text-gray-600 hover:text-gray-600 p-1 cursor-pointer">
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
                   </DropdownMenuTrigger>
@@ -87,7 +220,9 @@ export default function SuperAdminDashboard() {
                     <DropdownMenuItem onClick={() => router.push("/dashboard/payment-tracking")}>
                       Payment Tracking
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/dashboard/operations")}>Operations</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/dashboard/operations")}>
+                      Operations
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </nav>
@@ -114,7 +249,6 @@ export default function SuperAdminDashboard() {
                     <Button 
                       variant="ghost" 
                       className="flex items-center space-x-2 hover:bg-gray-100"
-                      onClick={(e) => e.preventDefault()}
                     >
                       <Avatar className="w-8 h-8">
                         <AvatarImage src="/placeholder.svg" />
@@ -130,10 +264,16 @@ export default function SuperAdminDashboard() {
                       className="w-56 z-[1000]" 
                       sideOffset={8}
                     >
-                      <DropdownMenuItem className="cursor-pointer hover:bg-gray-100 px-4 py-2 text-sm">
+                      <DropdownMenuItem 
+                        onClick={() => router.push("/dashboard/profile")}
+                        className="cursor-pointer hover:bg-gray-100 px-4 py-2 text-sm"
+                      >
                         Profile
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer hover:bg-gray-100 px-4 py-2 text-sm">
+                      <DropdownMenuItem 
+                        onClick={() => router.push("/dashboard/settings")}
+                        className="cursor-pointer hover:bg-gray-100 px-4 py-2 text-sm"
+                      >
                         Settings
                       </DropdownMenuItem>
                       <DropdownMenuItem 
