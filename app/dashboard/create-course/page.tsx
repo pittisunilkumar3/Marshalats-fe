@@ -4,10 +4,14 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, Search, ChevronDown, MoreHorizontal, ArrowLeft } from "lucide-react"
+import { Bell, Search, ChevronDown, MoreHorizontal, ArrowLeft, Upload, Plus, X, Users, Star } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
@@ -15,13 +19,41 @@ import { useRouter } from "next/navigation"
 export default function CreateCoursePage() {
   const router = useRouter()
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+  const [prerequisites, setPrerequisites] = useState<string[]>([])
+  const [newPrerequisite, setNewPrerequisite] = useState("")
   const [formData, setFormData] = useState({
     courseTitle: "",
+    courseCode: "",
+    description: "",
     martialArtsStyle: "",
     difficultyLevel: "",
     category: "",
-    branchSpecificPrice: "",
+    maxStudents: "",
+    minAge: "",
+    maxAge: "",
+    price: "",
+    currency: "INR",
+    branchSpecificPricing: false,
+    instructor: "",
+    equipmentRequired: "",
+    syllabus: "",
+    certificationOffered: false,
+    isActive: true,
+    imageUrl: "",
+    videoUrl: "",
+    tags: [] as string[]
   })
+
+  const addPrerequisite = () => {
+    if (newPrerequisite.trim() && !prerequisites.includes(newPrerequisite.trim())) {
+      setPrerequisites([...prerequisites, newPrerequisite.trim()])
+      setNewPrerequisite("")
+    }
+  }
+
+  const removePrerequisite = (index: number) => {
+    setPrerequisites(prerequisites.filter((_, i) => i !== index))
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -119,131 +151,410 @@ export default function CreateCoursePage() {
       <main className="w-full p-4 lg:p-6">
         {/* Header with Back Button */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Create Course</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Create New Course</h1>
+            <p className="text-gray-600 mt-1">Set up a new martial arts course with comprehensive details</p>
+          </div>
           <Button
             variant="outline"
             onClick={() => router.push("/dashboard/courses")}
             className="flex items-center space-x-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Add New Course</span>
+            <span>Back to Courses</span>
           </Button>
         </div>
 
         {/* Create Course Form */}
-        <Card className="max-w-4xl">
-          <CardContent className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* First Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Form */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Star className="w-5 h-5 text-yellow-500" />
+                  <span>Course Information</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Basic Information */}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="courseTitle">Course Title *</Label>
+                        <Input
+                          id="courseTitle"
+                          value={formData.courseTitle}
+                          onChange={(e) => setFormData({ ...formData, courseTitle: e.target.value })}
+                          placeholder="e.g., Advanced Kung Fu Training"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="courseCode">Course Code *</Label>
+                        <Input
+                          id="courseCode"
+                          value={formData.courseCode}
+                          onChange={(e) => setFormData({ ...formData, courseCode: e.target.value })}
+                          placeholder="e.g., KF-ADV-001"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Course Description *</Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        placeholder="Provide a detailed description of the course, what students will learn, and benefits..."
+                        rows={4}
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="martialArtsStyle">Martial Arts Style *</Label>
+                        <Select
+                          value={formData.martialArtsStyle}
+                          onValueChange={(value) => setFormData({ ...formData, martialArtsStyle: value })}
+                        >
+                          <SelectTrigger className="h-10 px-3 w-full">
+                            <SelectValue placeholder="Select martial arts style" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="kung-fu">Kung Fu</SelectItem>
+                            <SelectItem value="karate">Karate</SelectItem>
+                            <SelectItem value="taekwondo">Taekwondo</SelectItem>
+                            <SelectItem value="boxing">Boxing</SelectItem>
+                            <SelectItem value="jiu-jitsu">Brazilian Jiu-Jitsu</SelectItem>
+                            <SelectItem value="muay-thai">Muay Thai</SelectItem>
+                            <SelectItem value="judo">Judo</SelectItem>
+                            <SelectItem value="krav-maga">Krav Maga</SelectItem>
+                            <SelectItem value="mixed-martial-arts">Mixed Martial Arts</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="difficultyLevel">Difficulty Level *</Label>
+                        <Select
+                          value={formData.difficultyLevel}
+                          onValueChange={(value) => setFormData({ ...formData, difficultyLevel: value })}
+                        >
+                          <SelectTrigger className="h-10 px-3 w-full">
+                            <SelectValue placeholder="Select difficulty level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="beginner">Beginner</SelectItem>
+                            <SelectItem value="intermediate">Intermediate</SelectItem>
+                            <SelectItem value="advanced">Advanced</SelectItem>
+                            <SelectItem value="expert">Expert</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="category">Category *</Label>
+                        <Select
+                          value={formData.category}
+                          onValueChange={(value) => setFormData({ ...formData, category: value })}
+                        >
+                          <SelectTrigger className="h-10 px-3 w-full">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="self-defense">Self Defense</SelectItem>
+                            <SelectItem value="fitness">Fitness & Conditioning</SelectItem>
+                            <SelectItem value="traditional">Traditional Martial Arts</SelectItem>
+                            <SelectItem value="competition">Competition Training</SelectItem>
+                            <SelectItem value="kids">Kids Program</SelectItem>
+                            <SelectItem value="adult">Adult Program</SelectItem>
+                            <SelectItem value="special-needs">Special Needs</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="instructor">Assigned Instructor</Label>
+                        <Select
+                          value={formData.instructor}
+                          onValueChange={(value) => setFormData({ ...formData, instructor: value })}
+                        >
+                          <SelectTrigger className="h-10 px-3 w-full">
+                            <SelectValue placeholder="Select instructor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sensei-john">Sensei John Martinez</SelectItem>
+                            <SelectItem value="master-chen">Master Chen Wei</SelectItem>
+                            <SelectItem value="coach-sarah">Coach Sarah Williams</SelectItem>
+                            <SelectItem value="sifu-david">Sifu David Thompson</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Student Requirements */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                      <Users className="w-5 h-5" />
+                      <span>Student Requirements</span>
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="maxStudents">Maximum Students</Label>
+                        <Input
+                          id="maxStudents"
+                          type="number"
+                          value={formData.maxStudents}
+                          onChange={(e) => setFormData({ ...formData, maxStudents: e.target.value })}
+                          placeholder="20"
+                          min="1"
+                          max="100"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="minAge">Minimum Age</Label>
+                        <Input
+                          id="minAge"
+                          type="number"
+                          value={formData.minAge}
+                          onChange={(e) => setFormData({ ...formData, minAge: e.target.value })}
+                          placeholder="6"
+                          min="3"
+                          max="100"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="maxAge">Maximum Age</Label>
+                        <Input
+                          id="maxAge"
+                          type="number"
+                          value={formData.maxAge}
+                          onChange={(e) => setFormData({ ...formData, maxAge: e.target.value })}
+                          placeholder="65"
+                          min="3"
+                          max="100"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Prerequisites */}
+                    <div className="space-y-2">
+                      <Label>Prerequisites</Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          value={newPrerequisite}
+                          onChange={(e) => setNewPrerequisite(e.target.value)}
+                          placeholder="Add a prerequisite (e.g., Basic fitness level)"
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPrerequisite())}
+                        />
+                        <Button type="button" onClick={addPrerequisite} size="sm">
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {prerequisites.map((prereq, index) => (
+                          <Badge key={index} variant="secondary" className="flex items-center space-x-1">
+                            <span>{prereq}</span>
+                            <button
+                              type="button"
+                              onClick={() => removePrerequisite(index)}
+                              className="ml-1 hover:text-red-500"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Course Content */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Course Content</h3>
+                    
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="syllabus">Course Syllabus</Label>
+                        <Textarea
+                          id="syllabus"
+                          value={formData.syllabus}
+                          onChange={(e) => setFormData({ ...formData, syllabus: e.target.value })}
+                          placeholder="Outline the course curriculum, modules, techniques to be taught..."
+                          rows={4}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="equipmentRequired">Equipment Required</Label>
+                        <Textarea
+                          id="equipmentRequired"
+                          value={formData.equipmentRequired}
+                          onChange={(e) => setFormData({ ...formData, equipmentRequired: e.target.value })}
+                          placeholder="List any equipment students need to bring or purchase..."
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Media and Resources */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Media & Resources</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="imageUrl">Course Image URL</Label>
+                        <div className="flex space-x-2">
+                          <Input
+                            id="imageUrl"
+                            value={formData.imageUrl}
+                            onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                            placeholder="https://example.com/course-image.jpg"
+                          />
+                          <Button type="button" variant="outline" size="sm">
+                            <Upload className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="videoUrl">Promotional Video URL</Label>
+                        <Input
+                          id="videoUrl"
+                          value={formData.videoUrl}
+                          onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                          placeholder="https://youtube.com/watch?v=..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="pt-6 border-t">
+                    <div className="flex space-x-4">
+                      <Button type="submit" className="bg-yellow-400 hover:bg-yellow-500 text-black px-8">
+                        Create Course
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => router.push("/dashboard/courses")}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Pricing */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Pricing & Availability</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Course Title</label>
-                  <Select
-                    value={formData.courseTitle}
-                    onValueChange={(value) => setFormData({ ...formData, courseTitle: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Kung fu" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="kung-fu">Kung fu</SelectItem>
-                      <SelectItem value="karate">Karate</SelectItem>
-                      <SelectItem value="taekwondo">Taekwondo</SelectItem>
-                      <SelectItem value="boxing">Boxing</SelectItem>
-                      <SelectItem value="jiu-jitsu">Jiu Jitsu</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="price">Course Price *</Label>
+                  <div className="flex space-x-2">
+                    <Select
+                      value={formData.currency}
+                      onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                    >
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="INR">INR</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="EUR">EUR</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="price"
+                      type="number"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      placeholder="8500"
+                      className="flex-1"
+                      required
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Martial Arts Style</label>
-                  <Select
-                    value={formData.martialArtsStyle}
-                    onValueChange={(value) => setFormData({ ...formData, martialArtsStyle: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Karate, BJJ, Muay Thai, etc." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="karate-bjj-muay-thai">Karate, BJJ, Muay Thai, etc.</SelectItem>
-                      <SelectItem value="traditional-kung-fu">Traditional Kung Fu</SelectItem>
-                      <SelectItem value="mixed-martial-arts">Mixed Martial Arts</SelectItem>
-                      <SelectItem value="kickboxing">Kickboxing</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Second Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Difficulty Level</label>
-                  <Select
-                    value={formData.difficultyLevel}
-                    onValueChange={(value) => setFormData({ ...formData, difficultyLevel: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="entry level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="entry-level">Entry level</SelectItem>
-                      <SelectItem value="beginner">Beginner</SelectItem>
-                      <SelectItem value="intermediate">Intermediate</SelectItem>
-                      <SelectItem value="advanced">Advanced</SelectItem>
-                      <SelectItem value="expert">Expert</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="branchSpecificPricing">Branch-specific pricing</Label>
+                  <Switch
+                    id="branchSpecificPricing"
+                    checked={formData.branchSpecificPricing}
+                    onCheckedChange={(checked) => setFormData({ ...formData, branchSpecificPricing: checked })}
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Category</label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Beginner/Intermediate/Expert" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="beginner">Beginner</SelectItem>
-                      <SelectItem value="intermediate">Intermediate</SelectItem>
-                      <SelectItem value="expert">Expert</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="certificationOffered">Offers Certification</Label>
+                  <Switch
+                    id="certificationOffered"
+                    checked={formData.certificationOffered}
+                    onCheckedChange={(checked) => setFormData({ ...formData, certificationOffered: checked })}
+                  />
                 </div>
-              </div>
 
-              {/* Third Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Branch Specific Price</label>
-                  <Select
-                    value={formData.branchSpecificPrice}
-                    onValueChange={(value) => setFormData({ ...formData, branchSpecificPrice: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="INR 8500" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="inr-8500">INR 8500</SelectItem>
-                      <SelectItem value="inr-7500">INR 7500</SelectItem>
-                      <SelectItem value="inr-9500">INR 9500</SelectItem>
-                      <SelectItem value="inr-10000">INR 10000</SelectItem>
-                      <SelectItem value="inr-12000">INR 12000</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="isActive">Course Active</Label>
+                  <Switch
+                    id="isActive"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                  />
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Submit Button */}
-              <div className="pt-4">
-                <Button type="submit" className="bg-yellow-400 hover:bg-yellow-500 text-black px-8">
-                  Create Course
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+            {/* Course Statistics Preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Course Overview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Max Students:</span>
+                    <span className="font-medium">{formData.maxStudents || '—'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Age Range:</span>
+                    <span className="font-medium">
+                      {formData.minAge || '—'} - {formData.maxAge || '—'} years
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Price:</span>
+                    <span className="font-medium">
+                      {formData.currency} {formData.price || '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Prerequisites:</span>
+                    <span className="font-medium">{prerequisites.length} items</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Instructor:</span>
+                    <span className="font-medium">{formData.instructor || '—'}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </main>
 
       {/* Success Popup */}
