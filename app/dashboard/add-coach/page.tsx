@@ -4,12 +4,15 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Bell, Search, ChevronDown, MoreHorizontal, ArrowLeft } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
+import { Bell, Search, ChevronDown, MoreHorizontal, ArrowLeft, User, GraduationCap, MapPin, Phone, Mail, Calendar, Award, Briefcase } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
@@ -17,6 +20,7 @@ import { useRouter } from "next/navigation"
 export default function AddCoachPage() {
   const router = useRouter()
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -27,6 +31,7 @@ export default function AddCoachPage() {
     emailId: "",
     contactNumber: "",
     countryCode: "+1",
+    password: "",
     address: "",
     area: "",
     city: "",
@@ -35,7 +40,7 @@ export default function AddCoachPage() {
     country: "",
     educationQualification: "",
     professionalExperience: "",
-    expertIn: [],
+    expertIn: [] as string[],
     designation: "",
   })
 
@@ -50,8 +55,14 @@ export default function AddCoachPage() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    setIsSubmitting(false)
     setShowSuccessPopup(true)
   }
 
@@ -140,11 +151,14 @@ export default function AddCoachPage() {
 
       <main className="w-full p-4 lg:p-6">
         {/* Page Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Create Coach</h1>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Create Coach</h1>
+            <p className="text-gray-600 mt-1">Add a new martial arts coach to your academy</p>
+          </div>
           <Button
             variant="ghost"
-            className="flex items-center space-x-2 text-gray-600"
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 self-start sm:self-center"
             onClick={() => router.push("/dashboard/coaches")}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -154,26 +168,51 @@ export default function AddCoachPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Personal Information */}
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="firstName">First Name</Label>
+          {/* Row 1: Personal Information & Contact Information */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Personal Information Section */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <User className="w-5 h-5 text-blue-600" />
+                  Personal Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName" className="text-sm font-medium">
+                      First Name <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="firstName"
-                      placeholder="Ravi krishna"
+                      placeholder="Enter first name"
                       value={formData.firstName}
                       onChange={(e) => handleInputChange("firstName", e.target.value)}
+                      className="h-11 w-full"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="gender">Gender</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName" className="text-sm font-medium">
+                      Last Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="lastName"
+                      placeholder="Enter last name"
+                      value={formData.lastName}
+                      onChange={(e) => handleInputChange("lastName", e.target.value)}
+                      className="h-11 w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gender" className="text-sm font-medium">
+                      Gender <span className="text-red-500">*</span>
+                    </Label>
                     <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Male" />
+                      <SelectTrigger className="h-11 w-full">
+                        <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="male">Male</SelectItem>
@@ -183,183 +222,218 @@ export default function AddCoachPage() {
                     </Select>
                   </div>
 
-                  <div>
-                    <Label htmlFor="emailId">Email ID</Label>
-                    <Input
-                      id="emailId"
-                      type="email"
-                      placeholder="yourname@email.com"
-                      value={formData.emailId}
-                      onChange={(e) => handleInputChange("emailId", e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="address">Address</Label>
-                    <Input
-                      id="address"
-                      placeholder="926a/123"
-                      value={formData.address}
-                      onChange={(e) => handleInputChange("address", e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="city">City</Label>
-                    <Input
-                      id="city"
-                      placeholder="Hyderabad"
-                      value={formData.city}
-                      onChange={(e) => handleInputChange("city", e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="zipCode">Zip Code/Pin Code</Label>
-                    <Input
-                      id="zipCode"
-                      placeholder="500089"
-                      value={formData.zipCode}
-                      onChange={(e) => handleInputChange("zipCode", e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="educationQualification">Education Qualification</Label>
-                    <Input
-                      id="educationQualification"
-                      placeholder="Bachelor Degree"
-                      value={formData.educationQualification}
-                      onChange={(e) => handleInputChange("educationQualification", e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="expertIn">Expert in</Label>
-                    <Select
-                      value={formData.expertIn[0] || ""}
-                      onValueChange={(value) => handleExpertiseChange(value, true)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Taekwondo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="taekwondo">Taekwondo</SelectItem>
-                        <SelectItem value="karate">Karate</SelectItem>
-                        <SelectItem value="kungfu">Kung Fu</SelectItem>
-                        <SelectItem value="mixed-martial-arts">Mixed Martial Arts</SelectItem>
-                        <SelectItem value="zumba-dance">Zumba Dance</SelectItem>
-                        <SelectItem value="bharath-natyam">Bharath Natyam</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    {/* Expertise Checkboxes */}
-                    <div className="mt-4 space-y-2 max-h-32 overflow-y-auto border rounded p-3">
-                      {["Taekwondo", "Karate", "Kung Fu", "Mixed Martial Arts", "Zumba Dance", "Bharath Natyam"].map(
-                        (expertise) => (
-                          <div key={expertise} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={expertise}
-                              checked={formData.expertIn.includes(expertise.toLowerCase().replace(/\s+/g, "-"))}
-                              onCheckedChange={(checked) =>
-                                handleExpertiseChange(expertise.toLowerCase().replace(/\s+/g, "-"), checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={expertise} className="text-sm">
-                              {expertise}
-                            </Label>
-                          </div>
-                        ),
-                      )}
+                  <div className="space-y-2">
+                    <Label htmlFor="age" className="text-sm font-medium">
+                      Date of Birth <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="age"
+                        placeholder="DD/MM/YYYY"
+                        value={formData.age}
+                        onChange={(e) => handleInputChange("age", e.target.value)}
+                        className="h-11 pl-10 w-full"
+                      />
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* Additional Information */}
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      placeholder="R"
-                      value={formData.lastName}
-                      onChange={(e) => handleInputChange("lastName", e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="age">Age</Label>
-                    <Input
-                      id="age"
-                      placeholder="DD/MM/YYYY"
-                      value={formData.age}
-                      onChange={(e) => handleInputChange("age", e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="contactNumber">Contact number</Label>
-                    <div className="flex space-x-2">
-                      <Select
-                        value={formData.countryCode}
-                        onValueChange={(value) => handleInputChange("countryCode", value)}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="+1">+1</SelectItem>
-                          <SelectItem value="+91">+91</SelectItem>
-                          <SelectItem value="+44">+44</SelectItem>
-                        </SelectContent>
-                      </Select>
+            {/* Contact Information Section */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Phone className="w-5 h-5 text-green-600" />
+                  Contact Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="emailId" className="text-sm font-medium">
+                      Email Address <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                       <Input
-                        placeholder="345 567-23-56"
-                        value={formData.contactNumber}
-                        onChange={(e) => handleInputChange("contactNumber", e.target.value)}
-                        className="flex-1"
+                        id="emailId"
+                        type="email"
+                        placeholder="coach@example.com"
+                        value={formData.emailId}
+                        onChange={(e) => handleInputChange("emailId", e.target.value)}
+                        className="h-11 pl-10 w-full"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="area">Area</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="contactNumber" className="text-sm font-medium">
+                      Contact Number <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Enter phone number"
+                      value={formData.contactNumber}
+                      onChange={(e) => handleInputChange("contactNumber", e.target.value)}
+                      className="h-11 w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="countryCode" className="text-sm font-medium">
+                      Country Code <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      value={formData.countryCode}
+                      onValueChange={(value) => handleInputChange("countryCode", value)}
+                    >
+                      <SelectTrigger className="h-11 w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="+1">+1 (USA)</SelectItem>
+                        <SelectItem value="+91">+91 (India)</SelectItem>
+                        <SelectItem value="+44">+44 (UK)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-sm font-medium">
+                      Password <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter secure password"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      className="h-11 w-full"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Row 2: Address Information & Professional Information */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Address Information Section */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <MapPin className="w-5 h-5 text-red-600" />
+                  Address Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="address" className="text-sm font-medium">Address</Label>
+                    <Input
+                      id="address"
+                      placeholder="Enter street address"
+                      value={formData.address}
+                      onChange={(e) => handleInputChange("address", e.target.value)}
+                      className="h-11 w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="area" className="text-sm font-medium">Area</Label>
                     <Input
                       id="area"
-                      placeholder="Madhapur"
+                      placeholder="Enter area/locality"
                       value={formData.area}
                       onChange={(e) => handleInputChange("area", e.target.value)}
+                      className="h-11 w-full"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="state">State</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="city" className="text-sm font-medium">City</Label>
+                    <Input
+                      id="city"
+                      placeholder="Enter city"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange("city", e.target.value)}
+                      className="h-11 w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="state" className="text-sm font-medium">State</Label>
                     <Input
                       id="state"
-                      placeholder="Telangana"
+                      placeholder="Enter state"
                       value={formData.state}
                       onChange={(e) => handleInputChange("state", e.target.value)}
+                      className="h-11 w-full"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="country">Country</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="zipCode" className="text-sm font-medium">Zip Code/Pin Code</Label>
+                    <Input
+                      id="zipCode"
+                      placeholder="Enter zip/pin code"
+                      value={formData.zipCode}
+                      onChange={(e) => handleInputChange("zipCode", e.target.value)}
+                      className="h-11 w-full"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="country" className="text-sm font-medium">Country</Label>
                     <Input
                       id="country"
-                      placeholder="India"
+                      placeholder="Enter country"
                       value={formData.country}
                       onChange={(e) => handleInputChange("country", e.target.value)}
+                      className="h-11 w-full"
                     />
                   </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                  <div>
-                    <Label htmlFor="professionalExperience">Professional Experience</Label>
+            {/* Professional Information Section */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Briefcase className="w-5 h-5 text-purple-600" />
+                  Professional Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="educationQualification" className="text-sm font-medium">
+                      Education Qualification <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="educationQualification"
+                        placeholder="e.g., Bachelor's Degree"
+                        value={formData.educationQualification}
+                        onChange={(e) => handleInputChange("educationQualification", e.target.value)}
+                        className="h-11 pl-10 w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="professionalExperience" className="text-sm font-medium">
+                      Professional Experience <span className="text-red-500">*</span>
+                    </Label>
                     <Select
                       value={formData.professionalExperience}
                       onValueChange={(value) => handleInputChange("professionalExperience", value)}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="5+ years" />
+                      <SelectTrigger className="h-11 w-full">
+                        <SelectValue placeholder="Select experience level" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="1-2-years">1-2 years</SelectItem>
@@ -370,30 +444,121 @@ export default function AddCoachPage() {
                     </Select>
                   </div>
 
-                  <div>
-                    <Label htmlFor="designation">Designation</Label>
-                    <Select
-                      value={formData.designation}
-                      onValueChange={(value) => handleInputChange("designation", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sr Master" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="master">Master</SelectItem>
-                        <SelectItem value="sr-master">Sr Master</SelectItem>
-                        <SelectItem value="grandmaster">Grandmaster</SelectItem>
-                        <SelectItem value="instructor">Instructor</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-2">
+                    <Label htmlFor="designation" className="text-sm font-medium">
+                      Designation <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Award className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Select
+                        value={formData.designation}
+                        onValueChange={(value) => handleInputChange("designation", value)}
+                      >
+                        <SelectTrigger className="h-11 pl-10 w-full">
+                          <SelectValue placeholder="Select designation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="instructor">Instructor</SelectItem>
+                          <SelectItem value="master">Master</SelectItem>
+                          <SelectItem value="sr-master">Sr Master</SelectItem>
+                          <SelectItem value="grandmaster">Grandmaster</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="certification" className="text-sm font-medium">
+                      Certifications
+                    </Label>
+                    <Input
+                      id="certification"
+                      placeholder="Enter certifications"
+                      className="h-11 w-full"
+                    />
                   </div>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+          </div>
 
-              {/* Submit Button */}
-              <div className="mt-8">
-                <Button type="submit" className="bg-yellow-400 hover:bg-yellow-500 text-black px-8">
-                  Create Coach
+          {/* Row 3: Expertise Section - Full Width */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Award className="w-5 h-5 text-yellow-600" />
+                Areas of Expertise
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Select Martial Arts Disciplines <span className="text-red-500">*</span>
+                  </Label>
+                  <p className="text-sm text-gray-600">Choose all the martial arts disciplines this coach specializes in</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {["Taekwondo", "Karate", "Kung Fu", "Mixed Martial Arts", "Zumba Dance", "Bharath Natyam"].map(
+                    (expertise) => (
+                      <div key={expertise} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <Checkbox
+                          id={expertise}
+                          checked={formData.expertIn.includes(expertise.toLowerCase().replace(/\s+/g, "-"))}
+                          onCheckedChange={(checked) =>
+                            handleExpertiseChange(expertise.toLowerCase().replace(/\s+/g, "-"), checked as boolean)
+                          }
+                          className="w-5 h-5"
+                        />
+                        <Label htmlFor={expertise} className="text-sm font-medium cursor-pointer flex-1">
+                          {expertise}
+                        </Label>
+                      </div>
+                    ),
+                  )}
+                </div>
+
+                {/* Selected Expertise Display */}
+                {formData.expertIn.length > 0 && (
+                  <div className="mt-4">
+                    <Label className="text-sm font-medium text-gray-700">Selected Expertise:</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.expertIn.map((expertise) => (
+                        <Badge key={expertise} variant="secondary" className="px-3 py-1">
+                          {expertise.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Submit Section */}
+          <Card className="shadow-sm border-2 border-yellow-200 bg-yellow-50">
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Ready to Create Coach?</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Please review all the information before submitting
+                  </p>
+                </div>
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="bg-yellow-400 hover:bg-yellow-500 disabled:bg-yellow-300 text-black px-8 py-3 h-auto font-semibold shadow-md hover:shadow-lg transition-all duration-200 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Creating Coach...
+                    </>
+                  ) : (
+                    "Create Coach"
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -403,22 +568,31 @@ export default function AddCoachPage() {
 
       {/* Success Popup */}
       {showSuccessPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 animate-in zoom-in-95 duration-300">
             <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Coach Created Successfully!</h3>
-              <p className="text-gray-600 mb-6">The coach has been added to the system successfully.</p>
-              <div className="flex space-x-3">
-                <Button onClick={handleSuccessOk} className="bg-yellow-400 hover:bg-yellow-500 text-black flex-1">
-                  OK
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Coach Created Successfully!</h3>
+              <p className="text-gray-600 mb-8">
+                The coach profile has been created and added to your academy system. They can now be assigned to classes and students.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  onClick={handleSuccessOk} 
+                  className="bg-yellow-400 hover:bg-yellow-500 text-black flex-1 h-12 font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  Continue
                 </Button>
-                <Button variant="outline" onClick={() => router.push("/dashboard/coaches")} className="flex-1">
-                  Back to List
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push("/dashboard/coaches")} 
+                  className="flex-1 h-12 border-2 hover:bg-gray-50 transition-colors duration-200"
+                >
+                  View All Coaches
                 </Button>
               </div>
             </div>
