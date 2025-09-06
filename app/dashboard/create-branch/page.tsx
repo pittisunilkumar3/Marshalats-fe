@@ -1,290 +1,255 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, Search, ChevronDown, MoreHorizontal, Calendar, Clock, Plus, Trash2 } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { ArrowLeft, Building, MapPin, Clock, Users, CreditCard, X } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CheckCircle, AlertCircle } from "lucide-react"
+import DashboardHeader from "@/components/dashboard-header"
 
-interface BranchFormData {
-  branch: {
-    name: string;
-    code: string;
-    email: string;
-    phone: string;
-    address: {
-      line1: string;
-      area: string;
-      city: string;
-      state: string;
-      pincode: string;
-      country: string;
-    };
-  };
-  manager_id: string;
-  operational_details: {
-    courses_offered: string[];
-    timings: Array<{
-      day: string;
-      open: string;
-      close: string;
-    }>;
-    holidays: string[];
-  };
-  assignments: {
-    accessories_available: boolean;
-    courses: string[];
-    branch_admins: string[];
-  };
-  bank_details: {
-    bank_name: string;
-    account_number: string;
-    upi_id: string;
-  };
+// Interfaces for form data
+interface Address {
+  line1: string
+  area: string
+  city: string
+  state: string
+  pincode: string
+  country: string
 }
 
-export default function CreateBranch() {
-  const router = useRouter()
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
-  const [showErrorPopup, setShowErrorPopup] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+interface BranchInfo {
+  name: string
+  code: string
+  email: string
+  phone: string
+  address: Address
+}
 
-  // Form state
-  const [formData, setFormData] = useState<BranchFormData>({
+interface Timing {
+  day: string
+  open: string
+  close: string
+}
+
+interface OperationalDetails {
+  courses_offered: string[]
+  timings: Timing[]
+  holidays: string[]
+}
+
+interface Assignments {
+  accessories_available: boolean
+  courses: string[]
+  branch_admins: string[]
+}
+
+interface BankDetails {
+  bank_name: string
+  account_number: string
+  upi_id: string
+}
+
+interface FormData {
+  branch: BranchInfo
+  manager_id: string
+  operational_details: OperationalDetails
+  assignments: Assignments
+  bank_details: BankDetails
+}
+
+export default function CreateBranchPage() {
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+  const [errors, setErrors] = useState<{ [key: string]: string }>({})
+  
+  // State for new timing form
+  const [newTiming, setNewTiming] = useState({
+    day: "",
+    open: "07:00",
+    close: "19:00"
+  })
+
+  const [formData, setFormData] = useState<FormData>({
     branch: {
-      name: '',
-      code: '',
-      email: '',
-      phone: '',
+      name: "",
+      code: "",
+      email: "",
+      phone: "",
       address: {
-        line1: '',
-        area: '',
-        city: '',
-        state: '',
-        pincode: '',
-        country: 'India'
+        line1: "",
+        area: "",
+        city: "",
+        state: "",
+        pincode: "",
+        country: "India"
       }
     },
-    manager_id: '',
+    manager_id: "",
     operational_details: {
       courses_offered: [],
-      timings: [
-        { day: 'Monday', open: '07:00', close: '19:00' }
-      ],
+      timings: [],
       holidays: []
     },
     assignments: {
-      accessories_available: true,
+      accessories_available: false,
       courses: [],
       branch_admins: []
     },
     bank_details: {
-      bank_name: '',
-      account_number: '',
-      upi_id: ''
+      bank_name: "",
+      account_number: "",
+      upi_id: ""
     }
   })
 
-  const [phoneCountryCode, setPhoneCountryCode] = useState('+91')
-  const [phoneNumber, setPhoneNumber] = useState('')
-  const [newHoliday, setNewHoliday] = useState('')
-
-  // Available options (these would typically come from APIs)
+  // Available options
   const availableManagers = [
-    { id: 'manager-uuid-1', name: 'Ravi Kumar', designation: 'Manager' },
-    { id: 'manager-uuid-2', name: 'Priya Sharma', designation: 'Senior Instructor' },
-    { id: 'manager-uuid-3', name: 'Amit Singh', designation: 'Branch Head' },
-    { id: 'manager-uuid-4', name: 'Neha Patel', designation: 'Operations Manager' },
-    { id: 'manager-uuid-5', name: 'Rajesh Kumar', designation: 'Assistant Manager' },
-    { id: 'manager-uuid-6', name: 'Sunita Reddy', designation: 'Lead Instructor' },
+    { id: "manager-uuid-1", name: "Ravi Kumar" },
+    { id: "manager-uuid-2", name: "Priya Sharma" },
+    { id: "manager-uuid-3", name: "Amit Singh" },
+    { id: "manager-uuid-4", name: "Sunita Patel" }
   ]
 
   const availableCourses = [
-    { id: 'course-uuid-1', name: 'Taekwondo' },
-    { id: 'course-uuid-2', name: 'Karate' },
-    { id: 'course-uuid-3', name: 'Kung Fu' },
-    { id: 'course-uuid-4', name: 'Mixed Martial Arts' },
-    { id: 'course-uuid-5', name: 'Zumba Dance' },
-    { id: 'course-uuid-6', name: 'Bharath Natyam' },
+    { id: "course-uuid-1", name: "Taekwondo Basics" },
+    { id: "course-uuid-2", name: "Advanced Karate" },
+    { id: "course-uuid-3", name: "Kung Fu Fundamentals" },
+    { id: "course-uuid-4", name: "Self Defense for Women" },
+    { id: "course-uuid-5", name: "Mixed Martial Arts" },
+    { id: "course-uuid-6", name: "Kids Martial Arts" }
   ]
 
   const availableCoaches = [
-    { id: 'coach-uuid-1', name: 'Coach-1' },
-    { id: 'coach-uuid-2', name: 'Coach-2' },
-    { id: 'coach-uuid-3', name: 'Coach-3' },
-    { id: 'coach-uuid-4', name: 'Coach-4' },
-    { id: 'coach-uuid-5', name: 'Coach-5' },
-    { id: 'coach-uuid-6', name: 'Coach-6' },
+    { id: "coach-uuid-1", name: "Master John Lee" },
+    { id: "coach-uuid-2", name: "Coach Sarah Kim" },
+    { id: "coach-uuid-3", name: "Sensei David Wong" },
+    { id: "coach-uuid-4", name: "Coach Maria Garcia" }
   ]
 
-  const daysOfWeek = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+  const bankOptions = [
+    "State Bank of India",
+    "HDFC Bank",
+    "ICICI Bank",
+    "Axis Bank",
+    "Punjab National Bank",
+    "Bank of Baroda",
+    "Canara Bank",
+    "Union Bank of India"
   ]
 
-  const banks = [
-    'State Bank of India',
-    'HDFC Bank',
-    'ICICI Bank',
-    'Axis Bank',
-    'Punjab National Bank',
-    'Bank of Baroda'
-  ]
+  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-  // Handle form submission
-  const handleCreateBranch = async () => {
-    setIsLoading(true)
-    setErrorMessage('')
-
-    try {
-      // Validate required fields
-      if (!formData.branch.name || !formData.branch.code || !formData.branch.email || !formData.manager_id) {
-        throw new Error('Please fill in all required fields')
-      }
-
-      // Prepare the phone number
-      const fullPhoneNumber = phoneCountryCode + phoneNumber
-
-      // Prepare the API payload
-      const apiPayload = {
-        ...formData,
-        branch: {
-          ...formData.branch,
-          phone: fullPhoneNumber
-        }
-      }
-
-      console.log('Creating branch with payload:', apiPayload)
-
-      const token = localStorage.getItem('token')
-      if (!token) {
-        throw new Error('Authentication token not found. Please login again.')
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(apiPayload)
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to create branch')
-      }
-
-      console.log('Branch created successfully:', data)
-      setShowSuccessPopup(true)
-    } catch (error: any) {
-      console.error('Error creating branch:', error)
-      setErrorMessage(error.message || 'An unexpected error occurred')
-      setShowErrorPopup(true)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handlePopupClose = () => {
-    setShowSuccessPopup(false)
-    router.push("/dashboard/branches")
-  }
-
-  const handleErrorClose = () => {
-    setShowErrorPopup(false)
-    setErrorMessage('')
-  }
-
-  // Update form data helpers
-  const updateBranchField = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      branch: {
-        ...prev.branch,
-        [field]: value
-      }
-    }))
-  }
-
-  const updateAddressField = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      branch: {
-        ...prev.branch,
-        address: {
-          ...prev.branch.address,
-          [field]: value
-        }
-      }
-    }))
-  }
-
-  const updateBankField = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      bank_details: {
-        ...prev.bank_details,
-        [field]: value
-      }
-    }))
-  }
-
-  const addTiming = () => {
+  // Helper functions
+  const handleCoursesOfferedToggle = (course: string) => {
     setFormData(prev => ({
       ...prev,
       operational_details: {
         ...prev.operational_details,
-        timings: [
-          ...prev.operational_details.timings,
-          { day: 'Monday', open: '07:00', close: '19:00' }
-        ]
+        courses_offered: prev.operational_details.courses_offered.includes(course)
+          ? prev.operational_details.courses_offered.filter(c => c !== course)
+          : [...prev.operational_details.courses_offered, course]
       }
     }))
   }
 
-  const removeTiming = (index: number) => {
+  const handleCourseAssignmentToggle = (courseId: string) => {
     setFormData(prev => ({
       ...prev,
-      operational_details: {
-        ...prev.operational_details,
-        timings: prev.operational_details.timings.filter((_, i) => i !== index)
+      assignments: {
+        ...prev.assignments,
+        courses: prev.assignments.courses.includes(courseId)
+          ? prev.assignments.courses.filter(c => c !== courseId)
+          : [...prev.assignments.courses, courseId]
       }
     }))
   }
 
-  const updateTiming = (index: number, field: 'day' | 'open' | 'close', value: string) => {
+  const handleBranchAdminToggle = (coachId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      assignments: {
+        ...prev.assignments,
+        branch_admins: prev.assignments.branch_admins.includes(coachId)
+          ? prev.assignments.branch_admins.filter(c => c !== coachId)
+          : [...prev.assignments.branch_admins, coachId]
+      }
+    }))
+  }
+
+  const handleTimingChange = (dayIndex: number, field: 'open' | 'close', value: string) => {
     setFormData(prev => ({
       ...prev,
       operational_details: {
         ...prev.operational_details,
-        timings: prev.operational_details.timings.map((timing, i) => 
-          i === index ? { ...timing, [field]: value } : timing
+        timings: prev.operational_details.timings.map((timing, index) =>
+          index === dayIndex ? { ...timing, [field]: value } : timing
         )
       }
     }))
   }
 
-  const addHoliday = () => {
-    if (newHoliday && !formData.operational_details.holidays.includes(newHoliday)) {
+  const addTiming = () => {
+    if (newTiming.day && newTiming.open && newTiming.close) {
+      // Check if day already exists
+      const existingTimingIndex = formData.operational_details.timings.findIndex(t => t.day === newTiming.day)
+      
+      if (existingTimingIndex >= 0) {
+        // Update existing timing
+        setFormData(prev => ({
+          ...prev,
+          operational_details: {
+            ...prev.operational_details,
+            timings: prev.operational_details.timings.map((timing, index) =>
+              index === existingTimingIndex ? { ...newTiming } : timing
+            )
+          }
+        }))
+      } else {
+        // Add new timing
+        setFormData(prev => ({
+          ...prev,
+          operational_details: {
+            ...prev.operational_details,
+            timings: [...prev.operational_details.timings, { ...newTiming }]
+          }
+        }))
+      }
+      
+      // Reset form
+      setNewTiming({
+        day: "",
+        open: "07:00",
+        close: "19:00"
+      })
+    }
+  }
+
+  const removeTiming = (dayIndex: number) => {
+    setFormData(prev => ({
+      ...prev,
+      operational_details: {
+        ...prev.operational_details,
+        timings: prev.operational_details.timings.filter((_, index) => index !== dayIndex)
+      }
+    }))
+  }
+
+  const addHoliday = (date: string) => {
+    if (date && !formData.operational_details.holidays.includes(date)) {
       setFormData(prev => ({
         ...prev,
         operational_details: {
           ...prev.operational_details,
-          holidays: [...prev.operational_details.holidays, newHoliday]
+          holidays: [...prev.operational_details.holidays, date]
         }
       }))
-      setNewHoliday('')
     }
   }
 
@@ -298,633 +263,737 @@ export default function CreateBranch() {
     }))
   }
 
-  const toggleCourseSelection = (courseId: string, courseName: string) => {
-    setFormData(prev => {
-      const isSelected = prev.assignments.courses.includes(courseId)
-      return {
-        ...prev,
-        assignments: {
-          ...prev.assignments,
-          courses: isSelected 
-            ? prev.assignments.courses.filter(id => id !== courseId)
-            : [...prev.assignments.courses, courseId]
-        },
-        operational_details: {
-          ...prev.operational_details,
-          courses_offered: isSelected
-            ? prev.operational_details.courses_offered.filter(name => name !== courseName)
-            : [...prev.operational_details.courses_offered, courseName]
-        }
-      }
-    })
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {}
+
+    // Branch validation
+    if (!formData.branch.name.trim()) newErrors.branchName = "Branch name is required"
+    if (!formData.branch.code.trim()) newErrors.branchCode = "Branch code is required"
+    if (!formData.branch.email.trim()) newErrors.branchEmail = "Branch email is required"
+    if (!formData.branch.phone.trim()) newErrors.branchPhone = "Branch phone is required"
+    
+    // Address validation
+    if (!formData.branch.address.line1.trim()) newErrors.addressLine1 = "Address line 1 is required"
+    if (!formData.branch.address.area.trim()) newErrors.addressArea = "Area is required"
+    if (!formData.branch.address.city.trim()) newErrors.addressCity = "City is required"
+    if (!formData.branch.address.state.trim()) newErrors.addressState = "State is required"
+    if (!formData.branch.address.pincode.trim()) newErrors.addressPincode = "Pincode is required"
+
+    // Operational details validation
+    if (formData.operational_details.courses_offered.length === 0) {
+      newErrors.coursesOffered = "At least one course offering is required"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
-  const toggleCoachSelection = (coachId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      assignments: {
-        ...prev.assignments,
-        branch_admins: prev.assignments.branch_admins.includes(coachId)
-          ? prev.assignments.branch_admins.filter(id => id !== coachId)
-          : [...prev.assignments.branch_admins, coachId]
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      // Get the token from localStorage (in a real app, this would come from your auth context)
+      const token = localStorage.getItem('authToken') || 'mock-jwt-token'
+
+      const response = await fetch('/api/branches', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create branch')
       }
-    }))
+
+      console.log('Branch created successfully:', result)
+      setShowSuccessPopup(true)
+      
+      setTimeout(() => {
+        setShowSuccessPopup(false)
+        router.push("/dashboard/branches")
+      }, 2000)
+      
+    } catch (error) {
+      console.error('Error creating branch:', error)
+      alert(`Error creating branch: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
-      {/* Header - Same as dashboard */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="w-full px-4 lg:px-6">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4 lg:space-x-8 min-w-0">
-              <div className="flex items-center flex-shrink-0">
-                <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center">
-                  <span className="text-black font-bold text-lg">ROCK</span>
-                </div>
-              </div>
+    <div className="min-h-screen bg-gray-50">
+      <DashboardHeader currentPage="Create Branch" />
 
-              <nav className="hidden md:flex space-x-3 lg:space-x-6 overflow-x-auto">
-                <button
-                  onClick={() => router.push("/dashboard")}
-                  className="text-yellow-500 font-medium border-b-2 border-yellow-500 pb-4 text-sm whitespace-nowrap"
-                >
-                  Dashboard
-                </button>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Branches
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Masters
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Students
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Member ship
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Revenue
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Attendance
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Reports
-                </a>
-                <MoreHorizontal className="w-5 h-5 text-gray-400 flex-shrink-0" />
-              </nav>
-            </div>
-
-            <div className="flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
-              <div className="relative hidden lg:block">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Try searching: User Name, Course Name, User ID"
-                  className="pl-10 w-64 xl:w-80 bg-gray-50"
-                />
-              </div>
-
-              <div className="relative">
-                <Bell className="w-5 h-5 text-gray-600" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full"></div>
-              </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src="/placeholder.svg" />
-                      <AvatarFallback>SA</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium hidden lg:inline">Super admin</span>
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+      <main className="w-full p-4 lg:p-6">
+        {/* Header with Back Button */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/dashboard/branches")}
+              className="flex items-center space-x-2 hover:bg-gray-100"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Branches</span>
+            </Button>
+            <div className="w-px h-6 bg-gray-300"></div>
+            <h1 className="text-2xl font-bold text-gray-900">Create New Branch</h1>
           </div>
         </div>
-      </header>
 
-      <main className="w-full p-6 lg:p-8 overflow-x-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New Branch</h1>
-            <p className="text-gray-600">Fill in the details below to create a new branch</p>
-          </div>
-          <Button variant="outline" className="flex items-center space-x-2 bg-transparent border-gray-300 hover:bg-gray-50">
-            <Plus className="w-4 h-4" />
-            <span>Quick Actions</span>
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          {/* Left Column */}
-          <div className="space-y-8">
-            {/* Branch Information */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-semibold text-gray-800">Branch Information</CardTitle>
-                <p className="text-sm text-gray-500">Basic details about the branch</p>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 2x2 Card Grid Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Left Card - Branch & Address Information */}
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Building className="w-5 h-5 text-yellow-600" />
+                  <span>Branch & Address Information</span>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="branchName" className="text-sm font-medium text-gray-700 mb-2 block">
-                      Branch Name *
-                    </Label>
-                    <Input 
-                      id="branchName" 
-                      placeholder="e.g. Rock martial arts" 
-                      className="h-11"
-                      value={formData.branch.name}
-                      onChange={(e) => updateBranchField('name', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="branchCode" className="text-sm font-medium text-gray-700 mb-2 block">
-                      Branch Code *
-                    </Label>
-                    <Input 
-                      id="branchCode" 
-                      placeholder="e.g. RMA01" 
-                      className="h-11"
-                      value={formData.branch.code}
-                      onChange={(e) => updateBranchField('code', e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="branchEmail" className="text-sm font-medium text-gray-700 mb-2 block">
-                      Branch Email ID *
-                    </Label>
-                    <Input 
-                      id="branchEmail" 
-                      type="email"
-                      placeholder="yourname@email.com" 
-                      className="h-11"
-                      value={formData.branch.email}
-                      onChange={(e) => updateBranchField('email', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                      Branch Contact Number *
-                    </Label>
-                    <div className="flex gap-2">
-                      <Select value={phoneCountryCode} onValueChange={setPhoneCountryCode}>
-                        <SelectTrigger className="w-24 h-11">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="+1">+1</SelectItem>
-                          <SelectItem value="+91">+91</SelectItem>
-                          <SelectItem value="+44">+44</SelectItem>
-                          <SelectItem value="+61">+61</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input 
-                        placeholder="3455672356" 
-                        className="flex-1 h-11"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-
+              <CardContent className="space-y-4">
+                {/* Branch Basic Info */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-800">Address Details</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="address" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Address Line 1 *
-                      </Label>
-                      <Input 
-                        id="address" 
-                        placeholder="928#123" 
-                        className="h-11"
-                        value={formData.branch.address.line1}
-                        onChange={(e) => updateAddressField('line1', e.target.value)}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="branchName">Branch Name *</Label>
+                      <Input
+                        id="branchName"
+                        value={formData.branch.name}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          branch: { ...formData.branch, name: e.target.value }
+                        })}
+                        placeholder="Enter branch name"
+                        className={errors.branchName ? "border-red-500" : ""}
                       />
+                      {errors.branchName && <p className="text-red-500 text-sm">{errors.branchName}</p>}
                     </div>
-                    <div>
-                      <Label htmlFor="area" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Area *
-                      </Label>
-                      <Input 
-                        id="area" 
-                        placeholder="Madhapur" 
-                        className="h-11"
-                        value={formData.branch.address.area}
-                        onChange={(e) => updateAddressField('area', e.target.value)}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="branchCode">Branch Code *</Label>
+                      <Input
+                        id="branchCode"
+                        value={formData.branch.code}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          branch: { ...formData.branch, code: e.target.value }
+                        })}
+                        placeholder="Enter branch code (e.g., RMA01)"
+                        className={errors.branchCode ? "border-red-500" : ""}
                       />
+                      {errors.branchCode && <p className="text-red-500 text-sm">{errors.branchCode}</p>}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="city" className="text-sm font-medium text-gray-700 mb-2 block">
-                        City *
-                      </Label>
-                      <Input 
-                        id="city" 
-                        placeholder="Hyderabad" 
-                        className="h-11"
-                        value={formData.branch.address.city}
-                        onChange={(e) => updateAddressField('city', e.target.value)}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="branchEmail">Email *</Label>
+                      <Input
+                        id="branchEmail"
+                        type="email"
+                        value={formData.branch.email}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          branch: { ...formData.branch, email: e.target.value }
+                        })}
+                        placeholder="Enter branch email"
+                        className={errors.branchEmail ? "border-red-500" : ""}
                       />
+                      {errors.branchEmail && <p className="text-red-500 text-sm">{errors.branchEmail}</p>}
                     </div>
-                    <div>
-                      <Label htmlFor="state" className="text-sm font-medium text-gray-700 mb-2 block">
-                        State *
-                      </Label>
-                      <Input 
-                        id="state" 
-                        placeholder="Telangana" 
-                        className="h-11"
-                        value={formData.branch.address.state}
-                        onChange={(e) => updateAddressField('state', e.target.value)}
-                      />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="zipCode" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Pin Code *
-                      </Label>
-                      <Input 
-                        id="zipCode" 
-                        placeholder="500089" 
-                        className="h-11"
-                        value={formData.branch.address.pincode}
-                        onChange={(e) => updateAddressField('pincode', e.target.value)}
+                    <div className="space-y-2">
+                      <Label htmlFor="branchPhone">Phone *</Label>
+                      <Input
+                        id="branchPhone"
+                        value={formData.branch.phone}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          branch: { ...formData.branch, phone: e.target.value }
+                        })}
+                        placeholder="Enter phone number"
+                        className={errors.branchPhone ? "border-red-500" : ""}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="country" className="text-sm font-medium text-gray-700 mb-2 block">
-                        Country *
-                      </Label>
-                      <Select value={formData.branch.address.country} onValueChange={(value) => updateAddressField('country', value)}>
-                        <SelectTrigger className="h-11">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="India">India</SelectItem>
-                          <SelectItem value="USA">USA</SelectItem>
-                          <SelectItem value="UK">UK</SelectItem>
-                          <SelectItem value="Australia">Australia</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {errors.branchPhone && <p className="text-red-500 text-sm">{errors.branchPhone}</p>}
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Assign to Branch */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-semibold text-gray-800">Branch Assignments</CardTitle>
-                <p className="text-sm text-gray-500">Configure courses and administrators</p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-3 block">Accessories Available at this branch?</Label>
-                  <RadioGroup 
-                    value={formData.assignments.accessories_available.toString()} 
-                    onValueChange={(value) => setFormData(prev => ({
-                      ...prev,
-                      assignments: { ...prev.assignments, accessories_available: value === 'true' }
-                    }))}
-                    className="flex space-x-8"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="true" id="yes" />
-                      <Label htmlFor="yes" className="text-sm">Yes</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="false" id="no" />
-                      <Label htmlFor="no" className="text-sm">No</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
+                {/* Address Section */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <MapPin className="w-4 h-4 text-yellow-600" />
+                    <span className="font-medium">Address Details</span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="addressLine1">Address Line 1 *</Label>
+                        <Input
+                          id="addressLine1"
+                          value={formData.branch.address.line1}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            branch: {
+                              ...formData.branch,
+                              address: { ...formData.branch.address, line1: e.target.value }
+                            }
+                          })}
+                          placeholder="Building/House number and street"
+                          className={errors.addressLine1 ? "border-red-500" : ""}
+                        />
+                        {errors.addressLine1 && <p className="text-red-500 text-sm">{errors.addressLine1}</p>}
+                      </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-3 block">Select Courses *</Label>
-                    <div className="border rounded-lg p-4 max-h-48 overflow-y-auto bg-gray-50">
-                      <div className="space-y-3">
-                        {availableCourses.map((course) => (
-                          <div key={course.id} className="flex items-center space-x-3">
-                            <Checkbox 
-                              id={course.id}
-                              checked={formData.assignments.courses.includes(course.id)}
-                              onCheckedChange={() => toggleCourseSelection(course.id, course.name)}
-                            />
-                            <Label htmlFor={course.id} className="text-sm font-medium">
-                              {course.name}
-                            </Label>
-                          </div>
-                        ))}
+                      <div className="space-y-2">
+                        <Label htmlFor="addressArea">Area *</Label>
+                        <Input
+                          id="addressArea"
+                          value={formData.branch.address.area}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            branch: {
+                              ...formData.branch,
+                              address: { ...formData.branch.address, area: e.target.value }
+                            }
+                          })}
+                          placeholder="Area/Locality"
+                          className={errors.addressArea ? "border-red-500" : ""}
+                        />
+                        {errors.addressArea && <p className="text-red-500 text-sm">{errors.addressArea}</p>}
                       </div>
                     </div>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-3 block">Branch Admins</Label>
-                    <div className="border rounded-lg p-4 max-h-48 overflow-y-auto bg-gray-50">
-                      <div className="space-y-3">
-                        {availableCoaches.map((coach) => (
-                          <div key={coach.id} className="flex items-center space-x-3">
-                            <Checkbox 
-                              id={coach.id}
-                              checked={formData.assignments.branch_admins.includes(coach.id)}
-                              onCheckedChange={() => toggleCoachSelection(coach.id)}
-                            />
-                            <Label htmlFor={coach.id} className="text-sm font-medium">
-                              {coach.name}
-                            </Label>
-                          </div>
-                        ))}
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="addressCity">City *</Label>
+                        <Input
+                          id="addressCity"
+                          value={formData.branch.address.city}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            branch: {
+                              ...formData.branch,
+                              address: { ...formData.branch.address, city: e.target.value }
+                            }
+                          })}
+                          placeholder="City"
+                          className={errors.addressCity ? "border-red-500" : ""}
+                        />
+                        {errors.addressCity && <p className="text-red-500 text-sm">{errors.addressCity}</p>}
                       </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
 
-          {/* Right Column */}
-          <div className="space-y-8">
-            {/* Branch Manager */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-semibold text-gray-800">Branch Manager</CardTitle>
-                <p className="text-sm text-gray-500">Assign a manager to oversee this branch</p>
-              </CardHeader>
-              <CardContent>
-                <div>
-                  <Label htmlFor="branchManager" className="text-sm font-medium text-gray-700 mb-2 block">
-                    Select Branch Manager *
-                  </Label>
-                  <Select value={formData.manager_id} onValueChange={(value) => setFormData(prev => ({ ...prev, manager_id: value }))}>
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Choose a manager from the list" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableManagers.map((manager) => (
-                        <SelectItem key={manager.id} value={manager.id}>
-                          {manager.name} - {manager.designation}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
+                      <div className="space-y-2">
+                        <Label htmlFor="addressState">State *</Label>
+                        <Input
+                          id="addressState"
+                          value={formData.branch.address.state}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            branch: {
+                              ...formData.branch,
+                              address: { ...formData.branch.address, state: e.target.value }
+                            }
+                          })}
+                          placeholder="State"
+                          className={errors.addressState ? "border-red-500" : ""}
+                        />
+                        {errors.addressState && <p className="text-red-500 text-sm">{errors.addressState}</p>}
+                      </div>
 
-            {/* Operational Details */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-semibold text-gray-800">Operational Details</CardTitle>
-                <p className="text-sm text-gray-500">Configure branch timings and holidays</p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Branch Timings */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <Label className="text-sm font-medium text-gray-700">Branch Timings</Label>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={addTiming}
-                      className="h-8 px-3"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Timing
-                    </Button>
-                  </div>
-                  <div className="space-y-3">
-                    {formData.operational_details.timings.map((timing, index) => (
-                      <div key={index} className="flex gap-2 items-center p-3 border rounded-lg bg-gray-50">
-                        <Select value={timing.day} onValueChange={(value) => updateTiming(index, 'day', value)}>
-                          <SelectTrigger className="flex-1 h-10">
+                      <div className="space-y-2">
+                        <Label htmlFor="addressPincode">Pincode *</Label>
+                        <Input
+                          id="addressPincode"
+                          value={formData.branch.address.pincode}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            branch: {
+                              ...formData.branch,
+                              address: { ...formData.branch.address, pincode: e.target.value }
+                            }
+                          })}
+                          placeholder="Pincode"
+                          className={errors.addressPincode ? "border-red-500" : ""}
+                        />
+                        {errors.addressPincode && <p className="text-red-500 text-sm">{errors.addressPincode}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="addressCountry">Country</Label>
+                        <Select
+                          value={formData.branch.address.country}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            branch: {
+                              ...formData.branch,
+                              address: { ...formData.branch.address, country: value }
+                            }
+                          })}
+                        >
+                          <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {daysOfWeek.map((day) => (
-                              <SelectItem key={day} value={day}>{day}</SelectItem>
-                            ))}
+                            <SelectItem value="India">India</SelectItem>
+                            <SelectItem value="USA">USA</SelectItem>
+                            <SelectItem value="UK">UK</SelectItem>
                           </SelectContent>
                         </Select>
-                        <div className="flex items-center gap-2">
-                          <Input 
-                            type="time"
-                            value={timing.open}
-                            onChange={(e) => updateTiming(index, 'open', e.target.value)}
-                            className="w-24 h-10"
-                          />
-                          <span className="text-gray-500">to</span>
-                          <Input 
-                            type="time"
-                            value={timing.close}
-                            onChange={(e) => updateTiming(index, 'close', e.target.value)}
-                            className="w-24 h-10"
-                          />
-                        </div>
-                        {formData.operational_details.timings.length > 1 && (
-                          <Button 
-                            type="button"
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => removeTiming(index)}
-                            className="h-10 w-10 p-0 text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Branch Manager */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Users className="w-4 h-4 text-yellow-600" />
+                    <span className="font-medium">Branch Manager</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="managerId">Select Branch Manager</Label>
+                    <Select
+                      value={formData.manager_id}
+                      onValueChange={(value) => setFormData({ ...formData, manager_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a manager" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableManagers.map((manager) => (
+                          <SelectItem key={manager.id} value={manager.id}>
+                            {manager.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Top Right Card - Operational Details */}
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Clock className="w-5 h-5 text-yellow-600" />
+                  <span>Operational Details</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Courses Offered */}
+                <div className="space-y-2">
+                  <Label>Courses Offered *</Label>
+                  <div className="grid grid-cols-1 gap-3 max-h-48 overflow-y-auto">
+                    {availableCourses.map((course) => (
+                      <div key={course.name} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`course-offered-${course.name}`}
+                          checked={formData.operational_details.courses_offered.includes(course.name)}
+                          onCheckedChange={() => handleCoursesOfferedToggle(course.name)}
+                        />
+                        <Label htmlFor={`course-offered-${course.name}`} className="text-sm cursor-pointer">
+                          {course.name}
+                        </Label>
                       </div>
                     ))}
                   </div>
+                  {errors.coursesOffered && <p className="text-red-500 text-sm">{errors.coursesOffered}</p>}
+                  
+                  {formData.operational_details.courses_offered.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.operational_details.courses_offered.map((course) => (
+                        <Badge key={course} variant="secondary" className="bg-yellow-100 text-yellow-800">
+                          {course}
+                          <button
+                            type="button"
+                            onClick={() => handleCoursesOfferedToggle(course)}
+                            className="ml-2 hover:text-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                {/* Holiday Calendar */}
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-3 block">Holiday Calendar</Label>
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <Input 
-                        type="date"
-                        value={newHoliday}
-                        onChange={(e) => setNewHoliday(e.target.value)}
-                        className="flex-1 h-11"
-                        placeholder="Select holiday date"
-                      />
-                      <Button 
+                {/* Operating Hours - Dynamic */}
+                <div className="space-y-2">
+                  <Label>Operating Hours</Label>
+                  
+                  {/* Add New Timing Form */}
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Day</Label>
+                        <Select
+                          value={newTiming.day}
+                          onValueChange={(value) => setNewTiming(prev => ({ ...prev, day: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select day" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {daysOfWeek.map((day) => (
+                              <SelectItem key={day} value={day}>
+                                {day}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Open Time</Label>
+                        <Input
+                          type="time"
+                          value={newTiming.open}
+                          onChange={(e) => setNewTiming(prev => ({ ...prev, open: e.target.value }))}
+                          className="text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Close Time</Label>
+                        <Input
+                          type="time"
+                          value={newTiming.close}
+                          onChange={(e) => setNewTiming(prev => ({ ...prev, close: e.target.value }))}
+                          className="text-xs"
+                        />
+                      </div>
+                      <Button
                         type="button"
-                        onClick={addHoliday}
                         variant="outline"
-                        className="h-11 px-4"
+                        size="sm"
+                        onClick={addTiming}
+                        disabled={!newTiming.day}
+                        className="bg-yellow-50 hover:bg-yellow-100 border-yellow-300"
                       >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add
+                        {formData.operational_details.timings.some(t => t.day === newTiming.day) ? 'Update' : 'Add'}
                       </Button>
                     </div>
-                    {formData.operational_details.holidays.length > 0 && (
-                      <div className="border rounded-lg p-3 bg-gray-50 max-h-32 overflow-y-auto">
-                        <div className="space-y-2">
-                          {formData.operational_details.holidays.map((date) => (
-                            <div key={date} className="flex items-center justify-between py-1">
-                              <span className="text-sm">{new Date(date).toLocaleDateString()}</span>
-                              <Button 
-                                type="button"
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => removeHoliday(date)}
-                                className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
+
+                  {/* Display Added Timings */}
+                  {formData.operational_details.timings.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <Label className="text-sm font-medium">Configured Operating Hours:</Label>
+                      {formData.operational_details.timings.map((timing, index) => (
+                        <div key={`${timing.day}-${index}`} className="grid grid-cols-4 gap-2 items-center p-2 bg-white border rounded">
+                          <div className="font-medium text-sm">{timing.day}</div>
+                          <Input
+                            type="time"
+                            value={timing.open}
+                            onChange={(e) => handleTimingChange(index, 'open', e.target.value)}
+                            className="text-xs"
+                          />
+                          <Input
+                            type="time"
+                            value={timing.close}
+                            onChange={(e) => handleTimingChange(index, 'close', e.target.value)}
+                            className="text-xs"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeTiming(index)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {formData.operational_details.timings.length === 0 && (
+                    <p className="text-sm text-gray-500 italic">No operating hours configured yet. Add days and times above.</p>
+                  )}
+                </div>
+
+                {/* Holidays */}
+                <div className="space-y-2">
+                  <Label>Holidays</Label>
+                  <div className="flex space-x-2">
+                    <Input
+                      type="date"
+                      id="holidayDate"
+                      className="text-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          const input = e.target as HTMLInputElement
+                          addHoliday(input.value)
+                          input.value = ''
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const input = document.getElementById('holidayDate') as HTMLInputElement
+                        addHoliday(input.value)
+                        input.value = ''
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  
+                  {formData.operational_details.holidays.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2 max-h-24 overflow-y-auto">
+                      {formData.operational_details.holidays.map((holiday) => (
+                        <Badge key={holiday} variant="secondary" className="bg-blue-100 text-blue-800">
+                          {holiday}
+                          <button
+                            type="button"
+                            onClick={() => removeHoliday(holiday)}
+                            className="ml-2 hover:text-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Bank Details */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-semibold text-gray-800">Bank Details</CardTitle>
-                <p className="text-sm text-gray-500">Payment and banking information</p>
+            {/* Bottom Left Card - Course & Staff Assignments */}
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Users className="w-5 h-5 text-yellow-600" />
+                  <span>Course & Staff Assignments</span>
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div>
-                  <Label htmlFor="bankName" className="text-sm font-medium text-gray-700 mb-2 block">
-                    Bank Name *
-                  </Label>
-                  <Select value={formData.bank_details.bank_name} onValueChange={(value) => updateBankField('bank_name', value)}>
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Select bank" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {banks.map((bank) => (
-                        <SelectItem key={bank} value={bank}>{bank}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Accessories Available */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="accessoriesAvailable"
+                    checked={formData.assignments.accessories_available}
+                    onCheckedChange={(checked) => setFormData({
+                      ...formData,
+                      assignments: { ...formData.assignments, accessories_available: !!checked }
+                    })}
+                  />
+                  <Label htmlFor="accessoriesAvailable">Accessories Available at Branch</Label>
                 </div>
 
-                <div>
-                  <Label htmlFor="accountNumber" className="text-sm font-medium text-gray-700 mb-2 block">
-                    Account Number *
-                  </Label>
-                  <Input 
-                    id="accountNumber" 
-                    placeholder="Enter account number" 
-                    className="h-11"
-                    value={formData.bank_details.account_number}
-                    onChange={(e) => updateBankField('account_number', e.target.value)}
-                  />
+                {/* Course Assignments */}
+                <div className="space-y-2">
+                  <Label>Assign Courses to Branch</Label>
+                  <div className="grid grid-cols-1 gap-3 max-h-40 overflow-y-auto">
+                    {availableCourses.map((course) => (
+                      <div key={course.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`course-assign-${course.id}`}
+                          checked={formData.assignments.courses.includes(course.id)}
+                          onCheckedChange={() => handleCourseAssignmentToggle(course.id)}
+                        />
+                        <Label htmlFor={`course-assign-${course.id}`} className="text-sm cursor-pointer">
+                          {course.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {formData.assignments.courses.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2 max-h-24 overflow-y-auto">
+                      {formData.assignments.courses.map((courseId) => {
+                        const course = availableCourses.find(c => c.id === courseId)
+                        return course ? (
+                          <Badge key={courseId} variant="secondary" className="bg-green-100 text-green-800">
+                            {course.name}
+                            <button
+                              type="button"
+                              onClick={() => handleCourseAssignmentToggle(courseId)}
+                              className="ml-2 hover:text-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </Badge>
+                        ) : null
+                      })}
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <Label htmlFor="upiId" className="text-sm font-medium text-gray-700 mb-2 block">
-                    UPI ID *
-                  </Label>
-                  <Input 
-                    id="upiId" 
-                    placeholder="name@ybl" 
-                    className="h-11"
-                    value={formData.bank_details.upi_id}
-                    onChange={(e) => updateBankField('upi_id', e.target.value)}
-                  />
+                {/* Branch Admins */}
+                <div className="space-y-2">
+                  <Label>Assign Branch Admins</Label>
+                  <div className="grid grid-cols-1 gap-3 max-h-32 overflow-y-auto">
+                    {availableCoaches.map((coach) => (
+                      <div key={coach.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`admin-${coach.id}`}
+                          checked={formData.assignments.branch_admins.includes(coach.id)}
+                          onCheckedChange={() => handleBranchAdminToggle(coach.id)}
+                        />
+                        <Label htmlFor={`admin-${coach.id}`} className="text-sm cursor-pointer">
+                          {coach.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {formData.assignments.branch_admins.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2 max-h-20 overflow-y-auto">
+                      {formData.assignments.branch_admins.map((coachId) => {
+                        const coach = availableCoaches.find(c => c.id === coachId)
+                        return coach ? (
+                          <Badge key={coachId} variant="secondary" className="bg-purple-100 text-purple-800">
+                            {coach.name}
+                            <button
+                              type="button"
+                              onClick={() => handleBranchAdminToggle(coachId)}
+                              className="ml-2 hover:text-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </Badge>
+                        ) : null
+                      })}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Create Branch Button */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button 
-                variant="outline" 
-                onClick={() => router.push('/dashboard/branches')}
-                className="flex-1 h-12 text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleCreateBranch} 
-                disabled={isLoading}
-                className="flex-1 h-12 bg-yellow-400 hover:bg-yellow-500 text-black font-medium disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                    <span>Creating...</span>
+            {/* Bottom Right Card - Bank Details */}
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <CreditCard className="w-5 h-5 text-yellow-600" />
+                  <span>Bank Details</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="bankName">Bank Name</Label>
+                    <Select
+                      value={formData.bank_details.bank_name}
+                      onValueChange={(value) => setFormData({
+                        ...formData,
+                        bank_details: { ...formData.bank_details, bank_name: value }
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select bank" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bankOptions.map((bank) => (
+                          <SelectItem key={bank} value={bank}>
+                            {bank}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ) : (
-                  'Create Branch'
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </main>
 
-      {/* Success Dialog */}
-      <Dialog open={showSuccessPopup} onOpenChange={setShowSuccessPopup}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-center space-x-2">
-              <CheckCircle className="w-6 h-6 text-green-500" />
-              <span>Success!</span>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="text-center py-6">
-            <p className="text-gray-600 mb-6">Branch has been created successfully!</p>
-            <Button onClick={handlePopupClose} className="bg-yellow-400 hover:bg-yellow-500 text-black px-8 h-11">
-              Continue to Branches
+                  <div className="space-y-2">
+                    <Label htmlFor="accountNumber">Account Number</Label>
+                    <Input
+                      id="accountNumber"
+                      value={formData.bank_details.account_number}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        bank_details: { ...formData.bank_details, account_number: e.target.value }
+                      })}
+                      placeholder="Enter account number"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="upiId">UPI ID</Label>
+                    <Input
+                      id="upiId"
+                      value={formData.bank_details.upi_id}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        bank_details: { ...formData.bank_details, upi_id: e.target.value }
+                      })}
+                      placeholder="Enter UPI ID (e.g., name@ybl)"
+                    />
+                  </div>
+                </div>
+
+                {/* Bank Details Summary */}
+                <div className="pt-4 border-t">
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p><span className="font-medium">Note:</span> Bank details are optional but recommended for payment processing.</p>
+                    <p>UPI ID format: username@bankcode (e.g., john@paytm)</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex justify-end space-x-4 py-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push("/dashboard/branches")}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="bg-yellow-400 hover:bg-yellow-500 text-black"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                  <span>Creating Branch...</span>
+                </div>
+              ) : (
+                "Create Branch"
+              )}
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </form>
+      </main>
 
-      {/* Error Dialog */}
-      <Dialog open={showErrorPopup} onOpenChange={setShowErrorPopup}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-center space-x-2">
-              <AlertCircle className="w-6 h-6 text-red-500" />
-              <span>Error</span>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="text-center py-6">
-            <p className="text-gray-600 mb-6">{errorMessage}</p>
-            <div className="flex gap-3 justify-center">
-              <Button variant="outline" onClick={handleErrorClose} className="px-6 h-11">
-                Cancel
-              </Button>
-              <Button onClick={handleErrorClose} className="bg-red-500 hover:bg-red-600 text-white px-6 h-11">
-                Try Again
-              </Button>
+      {/* Success Popup */}
+      {showSuccessPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
             </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Branch Created Successfully!</h3>
+            <p className="text-gray-600 mb-4">The new branch has been added to your system.</p>
+            <div className="w-6 h-6 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   )
 }

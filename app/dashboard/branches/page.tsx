@@ -165,12 +165,20 @@ export default function BranchesList() {
       <main className="w-full p-4 lg:p-6 overflow-x-hidden">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Branches list</h1>
-          <Button
-            className="bg-yellow-400 hover:bg-yellow-500 text-black px-6"
-            onClick={() => setShowAssignPopup(true)}
-          >
-            Assign
-          </Button>
+          <div className="flex space-x-3">
+            <Button
+              onClick={() => router.push("/dashboard/create-branch")}
+              className="bg-yellow-400 hover:bg-yellow-500 text-black px-6 py-2 rounded-lg font-medium"
+            >
+              + Add Branch
+            </Button>
+            <Button
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6"
+              onClick={() => setShowAssignPopup(true)}
+            >
+              Assign Manager
+            </Button>
+          </div>
         </div>
 
         <div className="mb-6">

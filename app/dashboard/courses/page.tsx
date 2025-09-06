@@ -136,6 +136,12 @@ export default function CourseListPage() {
       <main className="w-full p-4 lg:p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Course list</h1>
+          <Button
+            onClick={() => router.push("/dashboard/create-course")}
+            className="bg-yellow-400 hover:bg-yellow-500 text-black px-6 py-2 rounded-lg font-medium"
+          >
+            + Add Course
+          </Button>
         </div>
 
         <div className="mb-6">
