@@ -386,25 +386,23 @@ export default function CreateStudent() {
     try {
       // Create API payload according to backend User Management API specification
       const apiPayload = {
-        full_name: `${formData.firstName} ${formData.lastName}`,
         email: formData.email,
-        password: formData.password || "TempPassword123!", // Temporary password
         phone: `${formData.countryCode}${formData.contactNumber}`,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
         role: "student",
-        branch_id: formData.branch || undefined,
+        password: formData.password || "TempPassword123!",
         date_of_birth: formData.dob || undefined,
-        address: {
-          line1: formData.address || "",
-          area: "",
-          city: formData.city || "",
-          state: formData.state || "",
-          pincode: formData.pincode || "",
-          country: "India"
-        },
-        emergency_contact: formData.emergencyContactName && formData.emergencyContactPhone ? {
-          name: formData.emergencyContactName,
-          relationship: formData.emergencyContactRelationship || "Guardian",
-          phone: formData.emergencyContactPhone
+        gender: formData.gender || undefined,
+        biometric_id: formData.biometricId || undefined,
+        course: formData.course ? {
+          category_id: formData.category || "martial-arts",
+          course_id: formData.course,
+          duration: formData.duration || "3-months"
+        } : undefined,
+        branch: formData.branch ? {
+          location_id: formData.location || "hyderabad",
+          branch_id: formData.branch
         } : undefined
       }
 
@@ -417,7 +415,7 @@ export default function CreateStudent() {
       }
 
       // Make API call using Student Management endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/students`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

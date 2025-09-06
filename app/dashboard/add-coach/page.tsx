@@ -28,6 +28,7 @@ export default function AddCoachPage() {
     gender: "",
     dateOfBirth: "",
     address: "",
+    area: "",
     city: "",
     state: "",
     zipCode: "",
@@ -166,7 +167,7 @@ export default function AddCoachPage() {
         },
         address_info: {
           address: formData.address,
-          area: "", // Not captured in current form
+          area: formData.area || formData.city, // Use area if provided, otherwise city
           city: formData.city,
           state: formData.state,
           zip_code: formData.zipCode,
@@ -365,17 +366,28 @@ export default function AddCoachPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="area">Area/Locality</Label>
+                  <Input
+                    id="area"
+                    value={formData.area}
+                    onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                    placeholder="Enter area or locality"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="city">City</Label>
                   <Input
                     id="city"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    placeholder="City"
+                    placeholder="Enter city"
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="state">State</Label>
                   <Input

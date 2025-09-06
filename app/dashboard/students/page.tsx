@@ -57,7 +57,7 @@ export default function StudentList() {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/students`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users?role=student`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -73,9 +73,13 @@ export default function StudentList() {
         const data = await response.json()
         console.log("Students fetched successfully:", data)
 
-        // Handle different response formats
-        const studentsData = data.students || data || []
-        setStudents(studentsData)
+        // Handle different response formats - API returns {users: [...]} for /users endpoint
+        const studentsData = data.users || data.students || data || []
+
+        // Ensure studentsData is always an array
+        const studentsArray = Array.isArray(studentsData) ? studentsData : []
+
+        setStudents(studentsArray)
 
       } catch (error) {
         console.error("Error fetching students:", error)
@@ -126,7 +130,7 @@ export default function StudentList() {
         }
 
         // Remove student from local state
-        setStudents(students.filter(student => student.id !== studentToDelete))
+        setStudents((Array.isArray(students) ? students : []).filter(student => student.id !== studentToDelete))
         setStudentToDelete(null)
         setShowDeletePopup(false)
 
@@ -153,7 +157,7 @@ export default function StudentList() {
         throw new Error("Authentication token not found. Please login again.")
       }
 
-      const student = students.find(s => s.id === studentId)
+      const student = (Array.isArray(students) ? students : []).find(s => s.id === studentId)
       if (!student) return
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/students/${studentId}`, {
@@ -173,7 +177,7 @@ export default function StudentList() {
       }
 
       // Update local state
-      setStudents(students.map(s =>
+      setStudents((Array.isArray(students) ? students : []).map(s =>
         s.id === studentId ? { ...s, is_active: !s.is_active } : s
       ))
 
@@ -258,14 +262,14 @@ export default function StudentList() {
                       Error: {error}
                     </td>
                   </tr>
-                ) : students.length === 0 ? (
+                ) : !Array.isArray(students) || students.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-8 px-6 text-center text-gray-500">
                       No students found
                     </td>
                   </tr>
                 ) : (
-                  students.map((student) => (
+                  (Array.isArray(students) ? students : []).map((student) => (
                     <tr key={student.id} className="border-b hover:bg-gray-50">
                       <td className="py-4 px-6">{student.full_name}</td>
                       <td className="py-4 px-6 capitalize">N/A</td>
