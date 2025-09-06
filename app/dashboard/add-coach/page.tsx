@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, User, Award, MapPin, Phone, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DashboardHeader from "@/components/dashboard-header"
+import { TokenManager } from "@/lib/tokenManager"
 
 export default function AddCoachPage() {
   const router = useRouter()
@@ -141,7 +142,7 @@ export default function AddCoachPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -149,20 +150,74 @@ export default function AddCoachPage() {
     setIsSubmitting(true)
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      console.log("Creating coach with data:", formData)
+      // Prepare coach data according to backend API specification
+      const coachData = {
+        personal_info: {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          gender: formData.gender,
+          date_of_birth: formData.dateOfBirth
+        },
+        contact_info: {
+          email: formData.email,
+          country_code: "+91", // Default for India
+          phone: formData.phone,
+          password: "TempPassword123!" // Temporary password - should be changed on first login
+        },
+        address_info: {
+          address: formData.address,
+          area: "", // Not captured in current form
+          city: formData.city,
+          state: formData.state,
+          zip_code: formData.zipCode,
+          country: formData.country
+        },
+        professional_info: {
+          education_qualification: formData.qualifications,
+          professional_experience: formData.experience,
+          designation_id: formData.designation,
+          certifications: formData.certifications ? formData.certifications.split(',').map(cert => cert.trim()) : []
+        },
+        areas_of_expertise: formData.specializations
+      }
+
+      console.log("Creating coach with data:", coachData)
+
+      // Get authentication token
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      // Call the backend API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(coachData)
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.detail || result.message || `Failed to create coach (${response.status})`)
+      }
+
+      console.log("Coach created successfully:", result)
       setShowSuccessPopup(true)
-      
+
       // Reset form after successful submission
       setTimeout(() => {
         setShowSuccessPopup(false)
         router.push("/dashboard/coaches")
       }, 2000)
-      
+
     } catch (error) {
       console.error("Error creating coach:", error)
+      // You might want to show an error message to the user here
+      alert(`Error creating coach: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsSubmitting(false)
     }

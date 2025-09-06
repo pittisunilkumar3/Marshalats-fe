@@ -66,12 +66,12 @@ function SuperAdminLoginFormContent() {
         body: JSON.stringify(requestBody)
       });
       
-      const response: SuperAdminLoginResponse = await res.json();
-      console.log("SuperAdmin login response:", response);
-      
+      const response = await res.json();
+      console.log("Superadmin login response:", response);
+
       // Handle HTTP errors
       if (!res.ok) {
-        setError(response.message || "Login failed");
+        setError(response.detail || response.message || `Login failed (${res.status})`);
         if (isEnabled) {
           resetRecaptcha();
         }
@@ -79,18 +79,8 @@ function SuperAdminLoginFormContent() {
         return;
       }
 
-      // Check API response status
-      if (response.status !== "success") {
-        setError(response.message || "Login failed");
-        if (isEnabled) {
-          resetRecaptcha();
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Validate response data structure
-      if (!response.data || !response.data.token) {
+      // Validate response structure according to actual backend API specification
+      if (response.status !== "success" || !response.data) {
         setError("Invalid response from server");
         if (isEnabled) {
           resetRecaptcha();
@@ -99,9 +89,10 @@ function SuperAdminLoginFormContent() {
         return;
       }
 
-      // Validate required fields in response
       const { data } = response;
-      if (!data.id || !data.full_name || !data.email || !data.token) {
+
+      // Validate required fields in the nested data object
+      if (!data.token || !data.id || !data.full_name || !data.email) {
         setError("Incomplete response from server");
         if (isEnabled) {
           resetRecaptcha();
@@ -110,16 +101,32 @@ function SuperAdminLoginFormContent() {
         return;
       }
 
-      // Store login data using auth utility
-      const userData = SuperAdminAuth.storeLoginData(response);
-      
-      console.log("SuperAdmin login successful:", {
+      // Store authentication data using unified token manager
+      const { TokenManager } = await import("@/lib/tokenManager");
+
+      // Create admin object from the response data
+      const adminData = {
         id: data.id,
         full_name: data.full_name,
         email: data.email,
         phone: data.phone,
-        token: data.token,
+        role: "superadmin" // Set role explicitly since it's not in the response
+      };
+
+      const userData = TokenManager.storeAuthData({
+        access_token: data.token,
         token_type: data.token_type,
+        expires_in: data.expires_in,
+        admin: adminData
+      });
+
+      console.log("Superadmin login successful:", {
+        admin_id: data.id,
+        full_name: data.full_name,
+        email: data.email,
+        phone: data.phone,
+        role: "superadmin",
+        access_token: data.token.substring(0, 20) + "...",
         expires_in: data.expires_in
       });
       

@@ -110,12 +110,7 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
                       >
                         Students
                       </button>
-                      <button
-                        onClick={() => handleMobileNavigation("/dashboard/coaches")}
-                        className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm"
-                      >
-                        Coaches
-                      </button>
+
                       <button
                         onClick={() => handleMobileNavigation("/dashboard/courses")}
                         className={`w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm ${
@@ -217,12 +212,7 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
               >
                 Students
               </button>
-              <button 
-                onClick={() => router.push("/dashboard/coaches")}
-                className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap cursor-pointer border-b-2 border-transparent"
-              >
-                Coaches
-              </button>
+
               <button 
                 onClick={() => router.push("/dashboard/courses")}
                 className={`pb-4 text-sm whitespace-nowrap cursor-pointer border-b-2 ${

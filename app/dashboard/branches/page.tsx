@@ -8,154 +8,160 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import DashboardHeader from "@/components/dashboard-header"
+import { TokenManager } from "@/lib/tokenManager"
+
+interface Branch {
+  id: string
+  branch: {
+    name: string
+    code: string
+    email: string
+    phone: string
+    address: {
+      line1: string
+      area: string
+      city: string
+      state: string
+      pincode: string
+      country: string
+    }
+  }
+  manager_id: string
+  operational_details: {
+    courses_offered: string[]
+    timings: Array<{
+      day: string
+      open: string
+      close: string
+    }>
+    holidays: string[]
+  }
+  assignments: {
+    accessories_available: boolean
+    courses: string[]
+    branch_admins: string[]
+  }
+  bank_details: {
+    bank_name: string
+    account_number: string
+    upi_id: string
+  }
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
 
 export default function BranchesList() {
   const router = useRouter()
   const [showAssignPopup, setShowAssignPopup] = useState(false)
   const [showDeletePopup, setShowDeletePopup] = useState(false)
-  const [branchToDelete, setBranchToDelete] = useState<number | null>(null)
+  const [branchToDelete, setBranchToDelete] = useState<string | null>(null)
   const [selectedBranch, setSelectedBranch] = useState("")
   const [selectedCoach, setSelectedCoach] = useState("")
-  const [branches, setBranches] = useState([
-    {
-      id: "RMA01",
-      name: "Madhapur Branch",
-      location: "Kavuri Hills Madhapur, Hyderabad",
-      activeStudents: 47,
-      courses: 6,
-      admin: "Ravi Krishna ch",
-      masters: 10,
-      accessories: "Yes",
-      email: "name@email.com",
-      contact: "9848XXXXXX",
-      status: "Manager",
-    },
-    {
-      id: "RMA02",
-      name: "Hitech City Branch",
-      location: "HITECH City, Hyderabad",
-      activeStudents: 55,
-      courses: 12,
-      admin: "Priya Sharma",
-      masters: 15,
-      accessories: "Yes",
-      email: "priya@email.com",
-      contact: "9848YYYYYY",
-      status: "Manager",
-    },
-    {
-      id: "RMA03",
-      name: "Gachibowli Branch",
-      location: "Gachibowli, Hyderabad",
-      activeStudents: 34,
-      courses: 8,
-      admin: "Amit Kumar",
-      masters: 7,
-      accessories: "No",
-      email: "amit@email.com",
-      contact: "9848ZZZZZZ",
-      status: "Manager",
-    },
-    {
-      id: "RMA01",
-      name: "Madhapur Branch",
-      location: "Kavuri Hills Madhapur, Hyderabad",
-      activeStudents: 47,
-      courses: 19,
-      admin: "Ravi Krishna ch",
-      masters: 10,
-      accessories: "Yes",
-      email: "name@email.com",
-      contact: "9848XXXXXX",
-      status: "Manager",
-    },
-    {
-      id: "RMA01",
-      name: "Madhapur Branch",
-      location: "Kavuri Hills Madhapur, Hyderabad",
-      activeStudents: 47,
-      courses: 7,
-      admin: "Ravi Krishna ch",
-      masters: 10,
-      accessories: "No",
-      email: "name@email.com",
-      contact: "9848XXXXXX",
-      status: "Manager",
-    },
-    {
-      id: "RMA01",
-      name: "Madhapur Branch",
-      location: "Kavuri Hills Madhapur, Hyderabad",
-      activeStudents: 47,
-      courses: 3,
-      admin: "Ravi Krishna ch",
-      masters: 10,
-      accessories: "Yes",
-      email: "name@email.com",
-      contact: "9848XXXXXX",
-      status: "Manager",
-    },
-    {
-      id: "RMA01",
-      name: "Madhapur Branch",
-      location: "Kavuri Hills Madhapur, Hyderabad",
-      activeStudents: 47,
-      courses: 2,
-      admin: "Ravi Krishna ch",
-      masters: 10,
-      accessories: "No",
-      email: "name@email.com",
-      contact: "9848XXXXXX",
-      status: "Manager",
-    },
-    {
-      id: "RMA01",
-      name: "Madhapur Branch",
-      location: "Kavuri Hills Madhapur, Hyderabad",
-      activeStudents: 47,
-      courses: 5,
-      admin: "Ravi Krishna ch",
-      masters: 10,
-      accessories: "No",
-      email: "name@email.com",
-      contact: "9848XXXXXX",
-      status: "Manager",
-    },
-  ])
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch branches from API
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const token = TokenManager.getToken()
+        if (!token) {
+          throw new Error("Authentication token not found. Please login again.")
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || errorData.message || `Failed to fetch branches (${response.status})`)
+        }
+
+        const data = await response.json()
+        console.log("Branches fetched successfully:", data)
+
+        // Handle different response formats
+        const branchesData = data.branches || data || []
+        setBranches(branchesData)
+
+      } catch (error) {
+        console.error("Error fetching branches:", error)
+        setError(error instanceof Error ? error.message : 'Failed to fetch branches')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchBranches()
+  }, [])
 
   const handleAssign = () => {
     if (selectedBranch && selectedCoach) {
-      setBranches((prev) =>
-        prev.map((branch) => (branch.name === selectedBranch ? { ...branch, admin: selectedCoach } : branch)),
-      )
+      // In a real implementation, this would call an API to assign the coach to the branch
+      console.log(`Assigning coach ${selectedCoach} to branch ${selectedBranch}`)
       setSelectedBranch("")
       setSelectedCoach("")
       setShowAssignPopup(false)
     }
   }
 
-  const handleDeleteClick = (index: number) => {
-    setBranchToDelete(index)
+  const handleDeleteClick = (branchId: string) => {
+    setBranchToDelete(branchId)
     setShowDeletePopup(true)
   }
 
-  const handleDeleteConfirm = () => {
-    if (branchToDelete !== null) {
-      setBranches((prev) => prev.filter((_, index) => index !== branchToDelete))
-      setShowDeletePopup(false)
-      setBranchToDelete(null)
+  const handleDeleteConfirm = async () => {
+    if (branchToDelete) {
+      try {
+        const token = TokenManager.getToken()
+        if (!token) {
+          throw new Error("Authentication token not found. Please login again.")
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches/${branchToDelete}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || errorData.message || `Failed to delete branch (${response.status})`)
+        }
+
+        // Remove branch from local state
+        setBranches(branches.filter(branch => branch.id !== branchToDelete))
+        setBranchToDelete(null)
+        setShowDeletePopup(false)
+
+      } catch (error) {
+        console.error("Error deleting branch:", error)
+        alert(`Error deleting branch: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
     }
+  }
+
+  const handleEditClick = (branchId: string) => {
+    router.push(`/dashboard/branches/edit/${branchId}`)
   }
 
   const handleDeleteCancel = () => {
     setShowDeletePopup(false)
     setBranchToDelete(null)
-  }
-
-  const handleEditClick = (index: number) => {
-    router.push(`/dashboard/branches/edit/${index}`)
   }
 
   return (
@@ -225,38 +231,88 @@ export default function BranchesList() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {branches.map((branch, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.id}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.name}</td>
-                  <td className="px-4 py-4 text-sm text-gray-900 max-w-xs">{branch.location}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.activeStudents}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.courses}</td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span className="text-sm text-gray-900">{branch.admin}</span>
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 mt-1 w-fit">
-                        {branch.status}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.masters}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.accessories}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.email}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.contact}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex items-center space-x-2">
-                      <button className="text-gray-400 hover:text-gray-600" onClick={() => handleEditClick(index)}>
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button className="text-gray-400 hover:text-red-600" onClick={() => handleDeleteClick(index)}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <Switch defaultChecked className="data-[state=checked]:bg-yellow-400" />
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={11} className="py-8 px-6 text-center text-gray-500">
+                    Loading branches...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={11} className="py-8 px-6 text-center text-red-500">
+                    Error: {error}
+                  </td>
+                </tr>
+              ) : branches.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-8 px-6 text-center text-gray-500">
+                    No branches found
+                  </td>
+                </tr>
+              ) : (
+                branches.map((branch) => (
+                  <tr key={branch.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.id}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch.name}</td>
+                    <td className="px-4 py-4 text-sm text-gray-900 max-w-xs">
+                      {`${branch.branch.address.line1}, ${branch.branch.address.city}, ${branch.branch.address.state}`}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">N/A</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.operational_details.courses_offered.length}</td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-gray-900">{branch.manager_id || 'Not Assigned'}</span>
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 mt-1 w-fit">
+                          Manager
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">N/A</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {branch.assignments.accessories_available ? 'Yes' : 'No'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch.email}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch.phone}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="flex items-center space-x-2">
+                        <button className="text-gray-400 hover:text-gray-600" onClick={() => handleEditClick(branch.id)}>
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button className="text-gray-400 hover:text-red-600" onClick={() => handleDeleteClick(branch.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <Switch
+                          checked={branch.is_active}
+                          className="data-[state=checked]:bg-yellow-400"
+                          onCheckedChange={async (checked) => {
+                            try {
+                              const token = TokenManager.getToken()
+                              if (!token) return
+
+                              const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches/${branch.id}`, {
+                                method: 'PUT',
+                                headers: {
+                                  'Authorization': `Bearer ${token}`,
+                                  'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ is_active: checked })
+                              })
+
+                              if (response.ok) {
+                                setBranches(branches.map(b =>
+                                  b.id === branch.id ? { ...b, is_active: checked } : b
+                                ))
+                              }
+                            } catch (error) {
+                              console.error("Error updating branch status:", error)
+                            }
+                          }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

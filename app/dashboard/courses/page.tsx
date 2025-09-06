@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,32 @@ import { Search, Edit, Trash2, X, ToggleLeft, ToggleRight, ChevronDown } from "l
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import DashboardHeader from "@/components/dashboard-header"
+import { TokenManager } from "@/lib/tokenManager"
+
+interface Course {
+  id: string
+  title: string
+  code: string
+  description: string
+  difficulty_level: string
+  student_requirements: {
+    max_students: number
+    min_age: number
+    max_age: number
+    prerequisites: string[]
+  }
+  pricing: {
+    currency: string
+    amount: number
+    branch_specific_pricing: boolean
+  }
+  settings: {
+    offers_certification: boolean
+    active: boolean
+  }
+  created_at: string
+  updated_at: string
+}
 
 export default function CourseListPage() {
   const router = useRouter()
@@ -21,75 +47,59 @@ export default function CourseListPage() {
   const [selectedBranch, setSelectedBranch] = useState("")
   const [selectedCourses, setSelectedCourses] = useState<string[]>([])
   const [showDeletePopup, setShowDeletePopup] = useState(false)
-  const [courseToDelete, setCourseToDelete] = useState<number | null>(null)
-  const [courses, setCourses] = useState([
-    {
-      id: 1,
-      name: "SHAOLIN KUNG FU",
-      icon: "🥋",
-      branches: 5,
-      masters: 2,
-      students: 25,
-      enabled: true,
-      branchLocations: ["Balaji Nagar", "Malkajgiri", "Yapral", "Tarnaka", "Madhapur"],
-    },
-    {
-      id: 2,
-      name: "TAEKWONDO",
-      icon: "🥋",
-      branches: 5,
-      masters: 2,
-      students: 25,
-      enabled: true,
-      branchLocations: ["Balaji Nagar", "Malkajgiri", "Yapral", "Tarnaka", "Madhapur"],
-    },
-    {
-      id: 3,
-      name: "KICK BOXING",
-      icon: "🥊",
-      branches: 5,
-      masters: 1,
-      students: 25,
-      enabled: true,
-      branchLocations: ["Balaji Nagar", "Malkajgiri", "Yapral", "Tarnaka", "Madhapur"],
-    },
-    {
-      id: 4,
-      name: "KUCHIPUDI DANCE",
-      icon: "💃",
-      branches: 5,
-      masters: 1,
-      students: 25,
-      enabled: true,
-      branchLocations: ["Balaji Nagar", "Malkajgiri", "Yapral", "Tarnaka", "Madhapur"],
-    },
-    {
-      id: 5,
-      name: "GYMNASTICS",
-      icon: "🤸",
-      branches: 5,
-      masters: 1,
-      students: 25,
-      enabled: true,
-      branchLocations: ["Balaji Nagar", "Malkajgiri", "Yapral", "Tarnaka", "Madhapur"],
-    },
-    {
-      id: 6,
-      name: "SELF DEFENSE",
-      icon: "🛡️",
-      branches: 5,
-      masters: 1,
-      students: 25,
-      enabled: true,
-      branchLocations: ["Balaji Nagar", "Malkajgiri", "Yapral", "Tarnaka", "Madhapur"],
-    },
-  ])
+  const [courseToDelete, setCourseToDelete] = useState<string | null>(null)
+  const [courses, setCourses] = useState<Course[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch courses from API
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const token = TokenManager.getToken()
+        if (!token) {
+          throw new Error("Authentication token not found. Please login again.")
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || errorData.message || `Failed to fetch courses (${response.status})`)
+        }
+
+        const data = await response.json()
+        console.log("Courses fetched successfully:", data)
+
+        // Handle different response formats
+        const coursesData = data.courses || data || []
+        setCourses(coursesData)
+
+      } catch (error) {
+        console.error("Error fetching courses:", error)
+        setError(error instanceof Error ? error.message : 'Failed to fetch courses')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCourses()
+  }, [])
 
   const availableCourses = ["Taekwondo", "Karate", "Kung Fu", "Mixed Martial Arts", "Zumba Dance", "Bharath Natyam"]
 
   const branches = ["Madhapur", "Balaji Nagar", "Malkajgiri", "Yapral", "Tarnaka"]
 
-  const filteredCourses = courses.filter((course) => course.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredCourses = courses.filter((course) => course.title.toLowerCase().includes(searchTerm.toLowerCase()))
 
   const handleAssignClick = () => {
     setShowAssignPopup(true)
@@ -106,27 +116,90 @@ export default function CourseListPage() {
     setSelectedCourses((prev) => (prev.includes(course) ? prev.filter((c) => c !== course) : [...prev, course]))
   }
 
-  const handleEditClick = (courseId: number) => {
+  const handleEditClick = (courseId: string) => {
     router.push(`/dashboard/courses/edit/${courseId}`)
   }
 
-  const handleDeleteClick = (courseId: number) => {
+  const handleDeleteClick = (courseId: string) => {
     setCourseToDelete(courseId)
     setShowDeletePopup(true)
   }
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (courseToDelete) {
-      setCourses((prev) => prev.filter((course) => course.id !== courseToDelete))
-      setShowDeletePopup(false)
-      setCourseToDelete(null)
+      try {
+        const token = TokenManager.getToken()
+        if (!token) {
+          throw new Error("Authentication token not found. Please login again.")
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/${courseToDelete}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || errorData.message || `Failed to delete course (${response.status})`)
+        }
+
+        // Remove course from local state
+        setCourses((prev) => prev.filter((course) => course.id !== courseToDelete))
+        setShowDeletePopup(false)
+        setCourseToDelete(null)
+
+      } catch (error) {
+        console.error("Error deleting course:", error)
+        alert(`Error deleting course: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
     }
   }
 
-  const handleToggleEnable = (courseId: number) => {
-    setCourses((prev) =>
-      prev.map((course) => (course.id === courseId ? { ...course, enabled: !course.enabled } : course)),
-    )
+  const handleToggleEnable = async (courseId: string) => {
+    try {
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      const course = courses.find(c => c.id === courseId)
+      if (!course) return
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/${courseId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          settings: {
+            ...course.settings,
+            active: !course.settings.active
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || `Failed to update course status (${response.status})`)
+      }
+
+      // Update local state
+      setCourses((prev) =>
+        prev.map((course) =>
+          course.id === courseId
+            ? { ...course, settings: { ...course.settings, active: !course.settings.active } }
+            : course
+        )
+      )
+
+    } catch (error) {
+      console.error("Error updating course status:", error)
+      alert(`Error updating course status: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   return (

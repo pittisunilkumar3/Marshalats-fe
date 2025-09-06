@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,93 +11,87 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
 import DashboardHeader from "@/components/dashboard-header"
+import { TokenManager } from "@/lib/tokenManager"
+
+interface Coach {
+  id: string
+  personal_info: {
+    first_name: string
+    last_name: string
+    gender: string
+    date_of_birth: string
+  }
+  contact_info: {
+    email: string
+    phone: string
+  }
+  professional_info: {
+    designation_id: string
+    education_qualification: string
+    professional_experience: string
+    certifications: string[]
+  }
+  areas_of_expertise: string[]
+  full_name: string
+  is_active: boolean
+  created_at: string
+}
 
 export default function CoachesListPage() {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
   const [showAssignPopup, setShowAssignPopup] = useState(false)
   const [showDeletePopup, setShowDeletePopup] = useState(false)
-  const [selectedCoach, setSelectedCoach] = useState<number | null>(null)
+  const [selectedCoach, setSelectedCoach] = useState<string | null>(null)
   const [assignData, setAssignData] = useState({ branch: "", coach: "" })
+  const [coaches, setCoaches] = useState<Coach[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const branchOptions = ["Madhapur", "Hitech City", "Gachibowli", "Kondapur", "Kukatpally"]
 
-  const coachOptions = ["Ravi Chandran", "Sneha Sharma", "Rajesh Kumar", "Amitabh Singh", "Priya Verma", "Vijay Patel"]
+  // Fetch coaches from API
+  useEffect(() => {
+    const fetchCoaches = async () => {
+      try {
+        setLoading(true)
+        setError(null)
 
-  const [coaches, setCoaches] = useState([
-    {
-      id: 1,
-      name: "Ravi Chandran",
-      gender: "Male",
-      age: 32,
-      designation: "Sensei",
-      experience: "5+ years",
-      expertise: ["Taekwondo", "Kung Fu", "Karate", "Mixed Martial Arts", "Bharath Natyam", "Zumba Dance"],
-      email: "ravi@email.com",
-      phone: "9848XXXXXX",
-      isActive: true,
-    },
-    {
-      id: 2,
-      name: "Sneha Sharma",
-      gender: "Female",
-      age: 28,
-      designation: "Grandmaster",
-      experience: "5+ years",
-      expertise: ["Taekwondo", "Kung Fu", "Karate", "Mixed Martial Arts", "Bharath Natyam", "Zumba Dance"],
-      email: "sneha@email.com",
-      phone: "9848XXXXXX",
-      isActive: true,
-    },
-    {
-      id: 3,
-      name: "Rajesh Kumar",
-      gender: "Male",
-      age: 35,
-      designation: "Dojo-cho",
-      experience: "5+ years",
-      expertise: ["Taekwondo", "Kung Fu", "Karate", "Mixed Martial Arts", "Bharath Natyam", "Zumba Dance"],
-      email: "rajesh@email.com",
-      phone: "9848XXXXXX",
-      isActive: true,
-    },
-    {
-      id: 4,
-      name: "Amitabh Singh",
-      gender: "Male",
-      age: 30,
-      designation: "Grandmaster",
-      experience: "5+ years",
-      expertise: ["Taekwondo", "Kung Fu", "Karate", "Mixed Martial Arts", "Bharath Natyam", "Zumba Dance"],
-      email: "amitabh@email.com",
-      phone: "9848XXXXXX",
-      isActive: true,
-    },
-    {
-      id: 5,
-      name: "Priya Verma",
-      gender: "Female",
-      age: 29,
-      designation: "Dojo-cho",
-      experience: "5+ years",
-      expertise: ["Taekwondo", "Kung Fu", "Karate", "Mixed Martial Arts", "Bharath Natyam", "Zumba Dance"],
-      email: "priya@email.com",
-      phone: "9848XXXXXX",
-      isActive: true,
-    },
-    {
-      id: 6,
-      name: "Vijay Patel",
-      gender: "Male",
-      age: 37,
-      designation: "Shihan",
-      experience: "5+ years",
-      expertise: ["Taekwondo", "Kung Fu", "Karate", "Mixed Martial Arts", "Bharath Natyam", "Zumba Dance"],
-      email: "vijay@email.com",
-      phone: "9848XXXXXX",
-      isActive: true,
-    },
-  ])
+        const token = TokenManager.getToken()
+        if (!token) {
+          throw new Error("Authentication token not found. Please login again.")
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || errorData.message || `Failed to fetch coaches (${response.status})`)
+        }
+
+        const data = await response.json()
+        console.log("Coaches fetched successfully:", data)
+
+        // Handle different response formats
+        const coachesData = data.coaches || data || []
+        setCoaches(coachesData)
+
+      } catch (error) {
+        console.error("Error fetching coaches:", error)
+        setError(error instanceof Error ? error.message : 'Failed to fetch coaches')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCoaches()
+  }, [])
 
   const handleAssignClick = () => {
     setShowAssignPopup(true)
@@ -109,26 +103,86 @@ export default function CoachesListPage() {
     setAssignData({ branch: "", coach: "" })
   }
 
-  const handleDeleteClick = (index: number) => {
-    setSelectedCoach(index)
+  const handleDeleteClick = (coachId: string) => {
+    setSelectedCoach(coachId)
     setShowDeletePopup(true)
   }
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedCoach !== null) {
-      setCoaches(coaches.filter((_, index) => index !== selectedCoach))
-      setShowDeletePopup(false)
-      setSelectedCoach(null)
+      try {
+        const token = TokenManager.getToken()
+        if (!token) {
+          throw new Error("Authentication token not found. Please login again.")
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches/${selectedCoach}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || errorData.message || `Failed to delete coach (${response.status})`)
+        }
+
+        // Remove coach from local state
+        setCoaches(coaches.filter(coach => coach.id !== selectedCoach))
+        setShowDeletePopup(false)
+        setSelectedCoach(null)
+
+      } catch (error) {
+        console.error("Error deleting coach:", error)
+        alert(`Error deleting coach: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
     }
   }
 
-  const handleEditClick = (index: number) => {
-    router.push(`/dashboard/coaches/edit/${index}`)
+  const handleEditClick = (coachId: string) => {
+    router.push(`/dashboard/coaches/edit/${coachId}`)
   }
 
-  const toggleCoachStatus = (index: number) => {
-    setCoaches(coaches.map((coach, i) => (i === index ? { ...coach, isActive: !coach.isActive } : coach)))
+  const toggleCoachStatus = async (coachId: string) => {
+    try {
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      const coach = coaches.find(c => c.id === coachId)
+      if (!coach) return
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches/${coachId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          is_active: !coach.is_active
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || `Failed to update coach status (${response.status})`)
+      }
+
+      // Update local state
+      setCoaches(coaches.map(c =>
+        c.id === coachId ? { ...c, is_active: !c.is_active } : c
+      ))
+
+    } catch (error) {
+      console.error("Error updating coach status:", error)
+      alert(`Error updating coach status: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
+
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -183,58 +237,83 @@ export default function CoachesListPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {coaches.map((coach, index) => (
-                    <tr key={coach.id} className="border-b hover:bg-gray-50">
-                      <td className="py-4 px-6 text-blue-600">{coach.name}</td>
-                      <td className="py-4 px-6 capitalize">{coach.gender}</td>
-                      <td className="py-4 px-6">{coach.age}</td>
-                      <td className="py-4 px-6">{coach.designation}</td>
-                      <td className="py-4 px-6">{coach.experience}</td>
-                      <td className="py-4 px-6">
-                        <div className="flex flex-wrap gap-1">
-                          {coach.expertise.map((skill, skillIndex) => (
-                            <Badge key={skillIndex} variant="secondary" className="bg-gray-100 text-gray-700 text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 text-blue-600">{coach.email}</td>
-                      <td className="py-4 px-6">{coach.phone}</td>
-                      <td className="py-4 px-6">
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditClick(index)}
-                            className="p-1 h-8 w-8"
-                          >
-                            <Edit className="w-4 h-4 text-gray-600" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteClick(index)}
-                            className="p-1 h-8 w-8"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-600" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleCoachStatus(index)}
-                            className="p-1 h-8 w-8"
-                          >
-                            {coach.isActive ? (
-                              <ToggleRight className="w-4 h-4 text-green-600" />
-                            ) : (
-                              <ToggleLeft className="w-4 h-4 text-gray-400" />
-                            )}
-                          </Button>
-                        </div>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={9} className="py-8 px-6 text-center text-gray-500">
+                        Loading coaches...
                       </td>
                     </tr>
-                  ))}
+                  ) : error ? (
+                    <tr>
+                      <td colSpan={9} className="py-8 px-6 text-center text-red-500">
+                        Error: {error}
+                      </td>
+                    </tr>
+                  ) : coaches.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-8 px-6 text-center text-gray-500">
+                        No coaches found
+                      </td>
+                    </tr>
+                  ) : (
+                    coaches.map((coach) => (
+                      <tr key={coach.id} className="border-b hover:bg-gray-50">
+                        <td className="py-4 px-6 text-blue-600">{coach.full_name}</td>
+                        <td className="py-4 px-6 capitalize">{coach.personal_info.gender}</td>
+                        <td className="py-4 px-6">
+                          {coach.personal_info.date_of_birth ?
+                            new Date().getFullYear() - new Date(coach.personal_info.date_of_birth).getFullYear()
+                            : 'N/A'
+                          }
+                        </td>
+                        <td className="py-4 px-6">{coach.professional_info.designation_id}</td>
+                        <td className="py-4 px-6">{coach.professional_info.professional_experience}</td>
+                        <td className="py-4 px-6">
+                          <div className="flex flex-wrap gap-1">
+                            {coach.areas_of_expertise.map((skill, skillIndex) => (
+                              <Badge key={skillIndex} variant="secondary" className="bg-gray-100 text-gray-700 text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 text-blue-600">{coach.contact_info.email}</td>
+                        <td className="py-4 px-6">{coach.contact_info.phone}</td>
+                        <td className="py-4 px-6">
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditClick(coach.id)}
+                              className="p-1 h-8 w-8"
+                            >
+                              <Edit className="w-4 h-4 text-gray-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteClick(coach.id)}
+                              className="p-1 h-8 w-8"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleCoachStatus(coach.id)}
+                              className="p-1 h-8 w-8"
+                            >
+                              {coach.is_active ? (
+                                <ToggleRight className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <ToggleLeft className="w-4 h-4 text-gray-400" />
+                              )}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

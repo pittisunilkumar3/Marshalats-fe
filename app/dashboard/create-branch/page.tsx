@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Building, MapPin, Clock, Users, CreditCard, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DashboardHeader from "@/components/dashboard-header"
+import { TokenManager } from "@/lib/tokenManager"
 
 // Interfaces for form data
 interface Address {
@@ -298,10 +299,16 @@ export default function CreateBranchPage() {
     setIsSubmitting(true)
 
     try {
-      // Get the token from localStorage (in a real app, this would come from your auth context)
-      const token = localStorage.getItem('authToken') || 'mock-jwt-token'
+      // Get authentication token using TokenManager
+      const token = TokenManager.getToken()
 
-      const response = await fetch('/api/branches', {
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      console.log('Creating branch with data:', formData)
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -313,7 +320,7 @@ export default function CreateBranchPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to create branch')
+        throw new Error(result.detail || result.message || `Failed to create branch (${response.status})`)
       }
 
       console.log('Branch created successfully:', result)

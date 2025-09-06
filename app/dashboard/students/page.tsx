@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -11,90 +11,83 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import DashboardHeader from "@/components/dashboard-header"
+import { TokenManager } from "@/lib/tokenManager"
+
+interface Student {
+  id: string
+  full_name: string
+  email: string
+  phone: string
+  role: string
+  branch_id: string
+  date_of_birth?: string
+  is_active: boolean
+  created_at: string
+  address?: {
+    line1: string
+    area: string
+    city: string
+    state: string
+    pincode: string
+    country: string
+  }
+}
 
 export default function StudentList() {
   const router = useRouter()
   const [showAssignPopup, setShowAssignPopup] = useState(false)
   const [showDeletePopup, setShowDeletePopup] = useState(false)
-  const [studentToDelete, setStudentToDelete] = useState<number | null>(null)
+  const [studentToDelete, setStudentToDelete] = useState<string | null>(null)
   const [selectedBranch, setSelectedBranch] = useState("")
   const [selectedCourses, setSelectedCourses] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [students, setStudents] = useState<Student[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const [students, setStudents] = useState([
-    {
-      id: 1,
-      name: "Madhapur Branch",
-      gender: "Male",
-      age: 22,
-      courses: ["Taekwondo", "Kung Fu", "Karate"],
-      level: "Entry Level",
-      duration: "5+ years",
-      email: "name@gmail.com",
-      phone: "9848XXXXXX",
-      enabled: true,
-    },
-    {
-      id: 2,
-      name: "Madhapur Branch",
-      gender: "Female",
-      age: 25,
-      courses: ["Taekwondo", "Kung Fu", "Karate"],
-      level: "Intermediate",
-      duration: "5+ years",
-      email: "name@gmail.com",
-      phone: "9848XXXXXX",
-      enabled: true,
-    },
-    {
-      id: 3,
-      name: "Madhapur Branch",
-      gender: "male",
-      age: 35,
-      courses: ["Taekwondo", "Kung Fu", "Karate"],
-      level: "Advance",
-      duration: "5+ years",
-      email: "name@gmail.com",
-      phone: "9848XXXXXX",
-      enabled: true,
-    },
-    {
-      id: 4,
-      name: "Madhapur Branch",
-      gender: "male",
-      age: 30,
-      courses: ["Taekwondo", "Kung Fu", "Karate"],
-      level: "Intermediate",
-      duration: "5+ years",
-      email: "name@gmail.com",
-      phone: "9848XXXXXX",
-      enabled: false,
-    },
-    {
-      id: 5,
-      name: "Madhapur Branch",
-      gender: "male",
-      age: 29,
-      courses: ["Taekwondo", "Kung Fu", "Karate"],
-      level: "Advance",
-      duration: "5+ years",
-      email: "name@gmail.com",
-      phone: "9848XXXXXX",
-      enabled: true,
-    },
-    {
-      id: 6,
-      name: "Madhapur Branch",
-      gender: "male",
-      age: 37,
-      courses: ["Taekwondo", "Kung Fu", "Karate"],
-      level: "Entry Level",
-      duration: "5+ years",
-      email: "name@gmail.com",
-      phone: "9848XXXXXX",
-      enabled: true,
-    },
-  ])
+  // Fetch students from API
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const token = TokenManager.getToken()
+        if (!token) {
+          throw new Error("Authentication token not found. Please login again.")
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/students`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || errorData.message || `Failed to fetch students (${response.status})`)
+        }
+
+        const data = await response.json()
+        console.log("Students fetched successfully:", data)
+
+        // Handle different response formats
+        const studentsData = data.students || data || []
+        setStudents(studentsData)
+
+      } catch (error) {
+        console.error("Error fetching students:", error)
+        setError(error instanceof Error ? error.message : 'Failed to fetch students')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStudents()
+  }, [])
+
 
   const handleAssignClick = () => {
     setShowAssignPopup(true)
@@ -106,17 +99,42 @@ export default function StudentList() {
     setSelectedCourses([])
   }
 
-  const handleDeleteClick = (studentId: number) => {
+  const handleDeleteClick = (studentId: string) => {
     setStudentToDelete(studentId)
     setShowDeletePopup(true)
   }
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (studentToDelete !== null) {
-      setStudents(students.filter((student) => student.id !== studentToDelete))
-      setStudentToDelete(null)
+      try {
+        const token = TokenManager.getToken()
+        if (!token) {
+          throw new Error("Authentication token not found. Please login again.")
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/students/${studentToDelete}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || errorData.message || `Failed to delete student (${response.status})`)
+        }
+
+        // Remove student from local state
+        setStudents(students.filter(student => student.id !== studentToDelete))
+        setStudentToDelete(null)
+        setShowDeletePopup(false)
+
+      } catch (error) {
+        console.error("Error deleting student:", error)
+        alert(`Error deleting student: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
     }
-    setShowDeletePopup(false)
   }
 
   const handleDeleteCancel = () => {
@@ -124,15 +142,48 @@ export default function StudentList() {
     setShowDeletePopup(false)
   }
 
-  const handleEditClick = (studentId: number) => {
+  const handleEditClick = (studentId: string) => {
     router.push(`/dashboard/students/edit/${studentId}`)
   }
 
-  const handleToggleStudent = (studentId: number) => {
-    setStudents(
-      students.map((student) => (student.id === studentId ? { ...student, enabled: !student.enabled } : student)),
-    )
+  const handleToggleStudent = async (studentId: string) => {
+    try {
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      const student = students.find(s => s.id === studentId)
+      if (!student) return
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/students/${studentId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          is_active: !student.is_active
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || `Failed to update student status (${response.status})`)
+      }
+
+      // Update local state
+      setStudents(students.map(s =>
+        s.id === studentId ? { ...s, is_active: !s.is_active } : s
+      ))
+
+    } catch (error) {
+      console.error("Error updating student status:", error)
+      alert(`Error updating student status: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
+
+
 
   const handleCourseToggle = (course: string) => {
     setSelectedCourses((prev) => (prev.includes(course) ? prev.filter((c) => c !== course) : [...prev, course]))
@@ -195,51 +246,72 @@ export default function StudentList() {
                 </tr>
               </thead>
               <tbody>
-                {students.map((student, index) => (
-                  <tr key={student.id} className="border-b hover:bg-gray-50">
-                    <td className="py-4 px-6">{student.name}</td>
-                    <td className="py-4 px-6 capitalize">{student.gender}</td>
-                    <td className="py-4 px-6">{student.age}</td>
-                    <td className="py-4 px-6">
-                      <div className="flex flex-wrap gap-1">
-                        {student.courses.map((course, courseIndex) => (
-                          <Badge key={courseIndex} variant="secondary" className="bg-gray-100 text-gray-700 text-xs">
-                            {course}
-                          </Badge>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">{student.level}</td>
-                    <td className="py-4 px-6">{student.duration}</td>
-                    <td className="py-4 px-6">{student.email}</td>
-                    <td className="py-4 px-6">{student.phone}</td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditClick(student.id)}
-                          className="p-1 h-8 w-8"
-                        >
-                          <Edit className="w-4 h-4 text-gray-600" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteClick(student.id)}
-                          className="p-1 h-8 w-8"
-                        >
-                          <Trash2 className="w-4 h-4 text-gray-600" />
-                        </Button>
-                        <Switch
-                          checked={student.enabled}
-                          onCheckedChange={() => handleToggleStudent(student.id)}
-                          className="data-[state=checked]:bg-yellow-400"
-                        />
-                      </div>
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} className="py-8 px-6 text-center text-gray-500">
+                      Loading students...
                     </td>
                   </tr>
-                ))}
+                ) : error ? (
+                  <tr>
+                    <td colSpan={9} className="py-8 px-6 text-center text-red-500">
+                      Error: {error}
+                    </td>
+                  </tr>
+                ) : students.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="py-8 px-6 text-center text-gray-500">
+                      No students found
+                    </td>
+                  </tr>
+                ) : (
+                  students.map((student) => (
+                    <tr key={student.id} className="border-b hover:bg-gray-50">
+                      <td className="py-4 px-6">{student.full_name}</td>
+                      <td className="py-4 px-6 capitalize">N/A</td>
+                      <td className="py-4 px-6">
+                        {student.date_of_birth ?
+                          new Date().getFullYear() - new Date(student.date_of_birth).getFullYear()
+                          : 'N/A'
+                        }
+                      </td>
+                      <td className="py-4 px-6">
+                        <Badge variant="secondary" className="bg-gray-100 text-gray-700 text-xs">
+                          Student
+                        </Badge>
+                      </td>
+                      <td className="py-4 px-6">N/A</td>
+                      <td className="py-4 px-6">N/A</td>
+                      <td className="py-4 px-6">{student.email}</td>
+                      <td className="py-4 px-6">{student.phone}</td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClick(student.id)}
+                            className="p-1 h-8 w-8"
+                          >
+                            <Edit className="w-4 h-4 text-gray-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClick(student.id)}
+                            className="p-1 h-8 w-8"
+                          >
+                            <Trash2 className="w-4 h-4 text-gray-600" />
+                          </Button>
+                          <Switch
+                            checked={student.is_active}
+                            onCheckedChange={() => handleToggleStudent(student.id)}
+                            className="data-[state=checked]:bg-yellow-400"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

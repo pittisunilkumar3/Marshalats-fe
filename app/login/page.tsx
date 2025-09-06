@@ -94,27 +94,18 @@ function LoginFormContent() {
         return;
       }
 
-      // Check response format and handle different response structures
-      let userInfo = null;
-      let token = null;
-
-      // Handle different response formats
-      if (data.user && data.access_token) {
-        // Format 1: { user: {...}, access_token: "..." }
-        userInfo = data.user;
-        token = data.access_token;
-      } else if (data.data && data.data.user && data.data.token) {
-        // Format 2: { data: { user: {...}, token: "..." } }
-        userInfo = data.data.user;
-        token = data.data.token;
-      } else if (data.status === "success" && data.data) {
-        // Format 3: { status: "success", data: { ... } }
-        userInfo = data.data;
-        token = data.data.token || data.data.access_token;
+      // Validate response structure according to backend API specification
+      if (!data.access_token || !data.user) {
+        setError("Invalid response from server");
+        if (isEnabled) {
+          resetRecaptcha();
+        }
+        setLoading(false);
+        return;
       }
 
       // Verify that the user is actually a student
-      if (userInfo && userInfo.role !== "student") {
+      if (data.user?.role !== "student") {
         setError("Access denied. Student credentials required.");
         if (isEnabled) {
           resetRecaptcha();
@@ -123,21 +114,24 @@ function LoginFormContent() {
         return;
       }
 
-      // Save token to localStorage if present
-      if (token) {
-        localStorage.setItem("token", token);
-        console.log("Token saved successfully");
-      } else {
-        console.warn("No token received in response");
-      }
-      
-      // Save user data if present
-      if (userInfo) {
-        localStorage.setItem("user", JSON.stringify(userInfo));
-        console.log("User data saved:", userInfo);
-      } else {
-        console.warn("No user data received in response");
-      }
+      // Store authentication data using unified token manager
+      const { TokenManager } = await import("@/lib/tokenManager");
+      const userData = TokenManager.storeAuthData({
+        access_token: data.access_token,
+        token_type: data.token_type,
+        expires_in: data.expires_in,
+        user: data.user
+      });
+
+      console.log("Student login successful:", {
+        user_id: data.user.id,
+        full_name: data.user.full_name,
+        email: data.user.email,
+        role: data.user.role,
+        branch_id: data.user.branch_id,
+        access_token: data.access_token.substring(0, 20) + "...",
+        expires_in: data.expires_in
+      });
       
       // Redirect to student dashboard
       console.log("Redirecting to student dashboard");

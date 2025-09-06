@@ -1,5 +1,6 @@
 // Base API configuration utility
 import { apiConfig } from './config'
+import { TokenManager } from './tokenManager'
 
 export class BaseAPI {
   protected baseURL: string
@@ -39,12 +40,18 @@ export class BaseAPI {
 
     // Add authorization header if token is provided
     if (token) {
-      defaultHeaders['Authorization'] = `bearer ${token}`
+      defaultHeaders['Authorization'] = `Bearer ${token}`
     } else {
-      // Try to get token from environment variables as fallback
-      const envToken = process.env.NEXT_PUBLIC_AUTH_TOKEN
-      if (envToken) {
-        defaultHeaders['Authorization'] = `bearer ${envToken}`
+      // Try to get token from TokenManager as fallback
+      const storedToken = TokenManager.getToken()
+      if (storedToken) {
+        defaultHeaders['Authorization'] = `Bearer ${storedToken}`
+      } else {
+        // Try to get token from environment variables as final fallback
+        const envToken = process.env.NEXT_PUBLIC_AUTH_TOKEN
+        if (envToken) {
+          defaultHeaders['Authorization'] = `Bearer ${envToken}`
+        }
       }
     }
 

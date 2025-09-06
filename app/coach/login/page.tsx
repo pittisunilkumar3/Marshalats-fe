@@ -93,7 +93,7 @@ function CoachLoginFormContent() {
       });
 
       // Call the coach login API endpoint
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/login`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody)
@@ -131,42 +131,17 @@ function CoachLoginFormContent() {
         return;
       }
 
-      // Store authentication data in localStorage
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("token_type", data.token_type || "bearer");
-      localStorage.setItem("expires_in", data.expires_in?.toString() || "86400");
-      
-      // Calculate and store token expiration time
-      const expirationTime = Date.now() + ((data.expires_in || 86400) * 1000);
-      localStorage.setItem("token_expiration", expirationTime.toString());
-      
-      // Store comprehensive coach data
-      const coachData = {
-        id: data.coach.id,
-        personal_info: data.coach.personal_info,
-        contact_info: data.coach.contact_info,
-        address_info: data.coach.address_info,
-        professional_info: data.coach.professional_info,
-        areas_of_expertise: data.coach.areas_of_expertise,
-        email: data.coach.email,
-        phone: data.coach.phone,
-        first_name: data.coach.first_name,
-        last_name: data.coach.last_name,
-        full_name: data.coach.full_name,
-        role: data.coach.role,
-        is_active: data.coach.is_active,
-        created_at: data.coach.created_at,
-        updated_at: data.coach.updated_at
-      };
-      
-      localStorage.setItem("coach", JSON.stringify(coachData));
-      localStorage.setItem("user", JSON.stringify({
-        id: data.coach.id,
-        email: data.coach.email,
-        full_name: data.coach.full_name,
-        role: data.coach.role,
-        is_active: data.coach.is_active
-      }));
+      // Store authentication data using unified token manager
+      const { TokenManager } = await import("@/lib/tokenManager");
+      const userData = TokenManager.storeAuthData({
+        access_token: data.access_token,
+        token_type: data.token_type,
+        expires_in: data.expires_in,
+        coach: data.coach
+      });
+
+      // Store comprehensive coach data for coach-specific features
+      localStorage.setItem("coach", JSON.stringify(data.coach));
       
       console.log("Coach login successful:", {
         coach_id: data.coach.id,

@@ -19,6 +19,7 @@ import { courseAPI, mapFormDataToAPI } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/AuthContext"
 import DashboardHeader from "@/components/dashboard-header"
+import { TokenManager } from "@/lib/tokenManager"
 
 export default function CreateCoursePage() {
   const router = useRouter()
@@ -93,12 +94,43 @@ export default function CreateCoursePage() {
         return
       }
 
-      // Map form data to API format
-      const apiData = mapFormDataToAPI(formData, prerequisites)
+      // Map form data to backend API format according to Course Management API specification
+      const apiData = {
+        title: formData.courseTitle,
+        code: formData.courseCode,
+        description: formData.description,
+        martial_art_style_id: formData.martialArtsStyle || "default-style-id", // This should be a UUID from martial arts styles
+        difficulty_level: formData.difficultyLevel,
+        category_id: formData.category || "default-category-id", // This should be a UUID from categories
+        instructor_id: formData.instructor || user?.id, // Use selected instructor or current user
+        student_requirements: {
+          max_students: parseInt(formData.maxStudents) || 20,
+          min_age: parseInt(formData.minAge) || 6,
+          max_age: parseInt(formData.maxAge) || 99,
+          prerequisites: prerequisites
+        },
+        course_content: {
+          syllabus: formData.syllabus || "",
+          equipment_required: formData.equipmentRequired ? formData.equipmentRequired.split(',').map(item => item.trim()) : []
+        },
+        media_resources: {
+          course_image_url: formData.courseImageUrl || "",
+          promo_video_url: formData.promoVideoUrl || ""
+        },
+        pricing: {
+          currency: formData.currency,
+          amount: parseFloat(formData.price),
+          branch_specific_pricing: formData.branchSpecificPricing
+        },
+        settings: {
+          offers_certification: formData.offersCertification || true,
+          active: true
+        }
+      }
 
-      // Use the JWT token from environment variables (working token)
-      const token = process.env.NEXT_PUBLIC_AUTH_TOKEN || access_token
-      
+      // Get authentication token
+      const token = TokenManager.getToken()
+
       if (!token) {
         toast({
           title: "Authentication Error",
@@ -108,12 +140,23 @@ export default function CreateCoursePage() {
         return
       }
 
-      console.log('🔐 Using JWT token for authentication')
-      console.log('📍 API Base URL:', process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8001')
       console.log('📋 Course data to send:', apiData)
 
-      // Call API with proper authentication
-      const response = await courseAPI.createCourse(apiData, token)
+      // Call backend API directly
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(apiData)
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.detail || result.message || `Failed to create course (${response.status})`)
+      }
 
       // Show success
       toast({

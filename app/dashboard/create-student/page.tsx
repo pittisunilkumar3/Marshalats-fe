@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { branchAPI } from "@/lib/branchAPI"
 import { courseAPI } from "@/lib/courseAPI"
 import DashboardHeader from "@/components/dashboard-header"
+import { TokenManager } from "@/lib/tokenManager"
 
 interface Branch {
   id: string
@@ -383,35 +384,44 @@ export default function CreateStudent() {
     setIsSubmitting(true)
 
     try {
-      // Create API payload matching register page structure
+      // Create API payload according to backend User Management API specification
       const apiPayload = {
-        email: formData.email,
-        password: formData.password || undefined,
-        phone: `${formData.countryCode}${formData.contactNumber}`,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
         full_name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        password: formData.password || "TempPassword123!", // Temporary password
+        phone: `${formData.countryCode}${formData.contactNumber}`,
         role: "student",
-        biometric_id: formData.biometricId || undefined,
-        is_active: true,
+        branch_id: formData.branch || undefined,
         date_of_birth: formData.dob || undefined,
-        gender: formData.gender || undefined,
-        course: formData.category && formData.course ? {
-          category_id: String(formData.category),
-          course_id: String(formData.course),
-          duration: formData.duration || undefined
-        } : undefined,
-        branch: formData.location && formData.branch ? {
-          location_id: String(formData.location),
-          branch_id: String(formData.branch)
+        address: {
+          line1: formData.address || "",
+          area: "",
+          city: formData.city || "",
+          state: formData.state || "",
+          pincode: formData.pincode || "",
+          country: "India"
+        },
+        emergency_contact: formData.emergencyContactName && formData.emergencyContactPhone ? {
+          name: formData.emergencyContactName,
+          relationship: formData.emergencyContactRelationship || "Guardian",
+          phone: formData.emergencyContactPhone
         } : undefined
       }
 
-      // Make API call using register endpoint structure
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/register`, {
+      console.log("Creating student with data:", apiPayload)
+
+      // Get authentication token
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      // Make API call using Student Management endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/students`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(apiPayload),
       })
