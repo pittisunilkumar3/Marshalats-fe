@@ -116,7 +116,7 @@ export default function StudentList() {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/students/${studentToDelete}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${studentToDelete}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -160,7 +160,7 @@ export default function StudentList() {
       const student = (Array.isArray(students) ? students : []).find(s => s.id === studentId)
       if (!student) return
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/students/${studentId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${studentId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

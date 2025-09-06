@@ -1,674 +1,1152 @@
 "use client"
 
+import type React from "react"
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, Search, ChevronDown, MoreHorizontal, Calendar, Clock } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
+import { ArrowLeft, Building, MapPin, Users, Clock, CreditCard, AlertCircle, Loader2, X } from "lucide-react"
 import { useRouter, useParams } from "next/navigation"
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CheckCircle } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { useToast } from "@/hooks/use-toast"
+import DashboardHeader from "@/components/dashboard-header"
+import { TokenManager } from "@/lib/tokenManager"
+
+interface FormData {
+  branch: {
+    name: string
+    code: string
+    email: string
+    phone: string
+    address: {
+      line1: string
+      area: string
+      city: string
+      state: string
+      pincode: string
+      country: string
+    }
+  }
+  manager_id: string
+  operational_details: {
+    courses_offered: string[]
+    timings: Array<{
+      day: string
+      open: string
+      close: string
+    }>
+    holidays: string[]
+  }
+  assignments: {
+    accessories_available: boolean
+    courses: string[]
+    branch_admins: string[]
+  }
+  bank_details: {
+    bank_name: string
+    account_number: string
+    upi_id: string
+  }
+}
+
+interface FormErrors {
+  [key: string]: string
+}
 
 export default function EditBranch() {
   const router = useRouter()
   const params = useParams()
+  const branchId = params.id as string
+  const { user } = useAuth()
+  const { toast } = useToast()
+  
+  // Loading states
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+  const [errors, setErrors] = useState<FormErrors>({})
 
-  const [formData, setFormData] = useState({
-    branchName: "",
-    branchCode: "",
-    branchEmail: "",
-    countryCode: "+91",
-    contactNumber: "",
-    address: "",
-    area: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    country: "",
-    managerName: "",
-    designation: "",
-    coursesOffered: "",
-    selectedDay: "",
-    timings: "",
-    holidayDates: "",
-    bankName: "",
-    accountNumber: "",
-    upiId: "",
-    accessories: "yes",
-    selectedCourses: [] as string[],
-    selectedCoaches: [] as string[],
+  // State for new timing form
+  const [newTiming, setNewTiming] = useState({
+    day: "",
+    open: "07:00",
+    close: "19:00"
   })
 
-  const mockBranches = [
-    {
-      id: "RMA01",
-      name: "Madhapur Branch",
-      code: "RMA01",
-      email: "madhapur@rockma.com",
-      countryCode: "+91",
-      contact: "9848123456",
-      address: "928#123",
-      area: "madhapur",
-      city: "Hyderabad",
-      state: "telangana",
-      zipCode: "500089",
-      country: "india",
-      managerName: "Ravi Krishna ch",
-      designation: "manager",
-      coursesOffered: "martial-arts",
-      selectedDay: "monday",
-      timings: "9:00 AM - 6:00 PM",
-      holidayDates: "2024-12-25, 2024-01-01",
-      bankName: "sbi",
-      accountNumber: "123456789012",
-      upiId: "ravi@ybl",
-      accessories: "yes",
-      selectedCourses: ["Taekwondo", "Karate"],
-      selectedCoaches: ["Coach-1", "Coach-2"],
+  const [formData, setFormData] = useState<FormData>({
+    branch: {
+      name: "",
+      code: "",
+      email: "",
+      phone: "",
+      address: {
+        line1: "",
+        area: "",
+        city: "",
+        state: "",
+        pincode: "",
+        country: "India"
+      }
     },
-    {
-      id: "RMA02",
-      name: "Hitech City Branch",
-      code: "RMA02",
-      email: "hitech@rockma.com",
-      countryCode: "+91",
-      contact: "9848654321",
-      address: "456#789",
-      area: "hitech-city",
-      city: "Hyderabad",
-      state: "telangana",
-      zipCode: "500081",
-      country: "india",
-      managerName: "Priya Sharma",
-      designation: "manager",
-      coursesOffered: "martial-arts",
-      selectedDay: "tuesday",
-      timings: "8:00 AM - 7:00 PM",
-      holidayDates: "2024-12-25, 2024-01-01",
-      bankName: "hdfc",
-      accountNumber: "987654321098",
-      upiId: "priya@ybl",
-      accessories: "yes",
-      selectedCourses: ["Kung Fu", "Mixed Martial Arts"],
-      selectedCoaches: ["Coach-3", "Coach-4"],
+    manager_id: "",
+    operational_details: {
+      courses_offered: [],
+      timings: [],
+      holidays: []
     },
+    assignments: {
+      accessories_available: false,
+      courses: [],
+      branch_admins: []
+    },
+    bank_details: {
+      bank_name: "",
+      account_number: "",
+      upi_id: ""
+    }
+  })
+
+  // Available options
+  const availableManagers = [
+    { id: "manager-uuid-1", name: "Ravi Kumar" },
+    { id: "manager-uuid-2", name: "Priya Sharma" },
+    { id: "manager-uuid-3", name: "Amit Singh" },
+    { id: "manager-uuid-4", name: "Sunita Patel" }
   ]
 
-  useEffect(() => {
-    const branchIndex = Number.parseInt(params.id as string)
-    const branch = mockBranches[branchIndex]
+  const availableCourses = [
+    { id: "course-uuid-1", name: "Kung Fu Basics" },
+    { id: "course-uuid-2", name: "Advanced Karate" },
+    { id: "course-uuid-3", name: "Taekwondo for Kids" },
+    { id: "course-uuid-4", name: "Boxing Fundamentals" }
+  ]
 
-    if (branch) {
-      setFormData({
-        branchName: branch.name,
-        branchCode: branch.code,
-        branchEmail: branch.email,
-        countryCode: branch.countryCode,
-        contactNumber: branch.contact,
-        address: branch.address,
-        area: branch.area,
-        city: branch.city,
-        state: branch.state,
-        zipCode: branch.zipCode,
-        country: branch.country,
-        managerName: branch.managerName,
-        designation: branch.designation,
-        coursesOffered: branch.coursesOffered,
-        selectedDay: branch.selectedDay,
-        timings: branch.timings,
-        holidayDates: branch.holidayDates,
-        bankName: branch.bankName,
-        accountNumber: branch.accountNumber,
-        upiId: branch.upiId,
-        accessories: branch.accessories,
-        selectedCourses: branch.selectedCourses,
-        selectedCoaches: branch.selectedCoaches,
+  const availableAdmins = [
+    { id: "admin-uuid-1", name: "John Doe" },
+    { id: "admin-uuid-2", name: "Jane Smith" },
+    { id: "admin-uuid-3", name: "Mike Johnson" }
+  ]
+
+  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+  // Fetch branch data on component mount
+  useEffect(() => {
+    const fetchBranchData = async () => {
+      try {
+        setIsLoading(true)
+        
+        const token = TokenManager.getToken()
+        if (!token) {
+          throw new Error("Authentication token not found. Please login again.")
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches/${branchId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error("Branch not found")
+          }
+          throw new Error(`Failed to fetch branch data: ${response.status}`)
+        }
+
+        const branchData = await response.json()
+        
+        // Map API data to form structure
+        setFormData({
+          branch: {
+            name: branchData.name || "",
+            code: branchData.code || "",
+            email: branchData.email || "",
+            phone: branchData.phone || "",
+            address: {
+              line1: branchData.address?.line1 || "",
+              area: branchData.address?.area || "",
+              city: branchData.address?.city || "",
+              state: branchData.address?.state || "",
+              pincode: branchData.address?.pincode || "",
+              country: branchData.address?.country || "India"
+            }
+          },
+          manager_id: branchData.manager_id || "",
+          operational_details: {
+            courses_offered: branchData.operational_details?.courses_offered || [],
+            timings: branchData.operational_details?.timings || [],
+            holidays: branchData.operational_details?.holidays || []
+          },
+          assignments: {
+            accessories_available: branchData.assignments?.accessories_available || false,
+            courses: branchData.assignments?.courses || [],
+            branch_admins: branchData.assignments?.branch_admins || []
+          },
+          bank_details: {
+            bank_name: branchData.bank_details?.bank_name || "",
+            account_number: branchData.bank_details?.account_number || "",
+            upi_id: branchData.bank_details?.upi_id || ""
+          }
+        })
+
+      } catch (error) {
+        console.error("Error fetching branch data:", error)
+        setErrors({ general: error instanceof Error ? error.message : 'Failed to load branch data' })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (branchId) {
+      fetchBranchData()
+    }
+  }, [branchId])
+
+  // Helper functions
+  const handleTimingChange = (dayIndex: number, field: 'open' | 'close', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      operational_details: {
+        ...prev.operational_details,
+        timings: prev.operational_details.timings.map((timing, index) =>
+          index === dayIndex ? { ...timing, [field]: value } : timing
+        )
+      }
+    }))
+  }
+
+  const addTiming = () => {
+    if (newTiming.day && newTiming.open && newTiming.close) {
+      // Check if day already exists
+      const existingTimingIndex = formData.operational_details.timings.findIndex(t => t.day === newTiming.day)
+
+      if (existingTimingIndex >= 0) {
+        // Update existing timing
+        setFormData(prev => ({
+          ...prev,
+          operational_details: {
+            ...prev.operational_details,
+            timings: prev.operational_details.timings.map((timing, index) =>
+              index === existingTimingIndex ? { ...newTiming } : timing
+            )
+          }
+        }))
+      } else {
+        // Add new timing
+        setFormData(prev => ({
+          ...prev,
+          operational_details: {
+            ...prev.operational_details,
+            timings: [...prev.operational_details.timings, { ...newTiming }]
+          }
+        }))
+      }
+
+      // Reset form
+      setNewTiming({
+        day: "",
+        open: "07:00",
+        close: "19:00"
       })
     }
-  }, [params.id])
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleCourseChange = (course: string, checked: boolean) => {
-    setFormData((prev) => ({
+  const removeTiming = (dayIndex: number) => {
+    setFormData(prev => ({
       ...prev,
-      selectedCourses: checked ? [...prev.selectedCourses, course] : prev.selectedCourses.filter((c) => c !== course),
+      operational_details: {
+        ...prev.operational_details,
+        timings: prev.operational_details.timings.filter((_, index) => index !== dayIndex)
+      }
     }))
   }
 
-  const handleCoachChange = (coach: string, checked: boolean) => {
-    setFormData((prev) => ({
+  const addHoliday = (date: string) => {
+    if (date && !formData.operational_details.holidays.includes(date)) {
+      setFormData(prev => ({
+        ...prev,
+        operational_details: {
+          ...prev.operational_details,
+          holidays: [...prev.operational_details.holidays, date]
+        }
+      }))
+      // Clear the input
+      const input = document.getElementById('holidayDate') as HTMLInputElement
+      if (input) input.value = ''
+    }
+  }
+
+  const removeHoliday = (holidayIndex: number) => {
+    setFormData(prev => ({
       ...prev,
-      selectedCoaches: checked ? [...prev.selectedCoaches, coach] : prev.selectedCoaches.filter((c) => c !== coach),
+      operational_details: {
+        ...prev.operational_details,
+        holidays: prev.operational_details.holidays.filter((_, index) => index !== holidayIndex)
+      }
     }))
   }
 
-  const handleSaveChanges = () => {
-    setShowSuccessPopup(true)
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {}
+
+    if (!formData.branch.name.trim()) {
+      newErrors.branchName = "Branch name is required"
+    }
+
+    if (!formData.branch.code.trim()) {
+      newErrors.branchCode = "Branch code is required"
+    }
+
+    if (!formData.branch.email.trim()) {
+      newErrors.branchEmail = "Email is required"
+    } else if (!/\S+@\S+\.\S+/.test(formData.branch.email)) {
+      newErrors.branchEmail = "Please enter a valid email address"
+    }
+
+    if (!formData.branch.phone.trim()) {
+      newErrors.branchPhone = "Phone number is required"
+    }
+
+    if (!formData.branch.address.line1.trim()) {
+      newErrors.addressLine1 = "Address line 1 is required"
+    }
+
+    if (!formData.branch.address.city.trim()) {
+      newErrors.city = "City is required"
+    }
+
+    if (!formData.branch.address.state.trim()) {
+      newErrors.state = "State is required"
+    }
+
+    if (!formData.branch.address.pincode.trim()) {
+      newErrors.pincode = "Pincode is required"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
-  const handlePopupClose = () => {
-    setShowSuccessPopup(false)
-    router.push("/dashboard/branches")
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const token = TokenManager.getToken()
+      if (!token) {
+        toast({
+          title: "Authentication Error",
+          description: "No authentication token available. Please login again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches/${branchId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.detail || result.message || `Failed to update branch (${response.status})`)
+      }
+
+      console.log("Branch updated successfully:", result)
+      setShowSuccessPopup(true)
+      
+      setTimeout(() => {
+        setShowSuccessPopup(false)
+        router.push("/dashboard/branches")
+      }, 2000)
+      
+    } catch (error) {
+      console.error("Error updating branch:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to update branch',
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <DashboardHeader currentPage="Edit Branch" />
+        <main className="w-full p-4 lg:p-6">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading branch data...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (errors.general) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <DashboardHeader currentPage="Edit Branch" />
+        <main className="w-full p-4 lg:p-6">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Branch</h2>
+              <p className="text-gray-600 mb-4">{errors.general}</p>
+              <Button onClick={() => router.push("/dashboard/branches")} variant="outline">
+                Back to Branches
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
-      {/* Header - Same as dashboard */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="w-full px-4 lg:px-6">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4 lg:space-x-8 min-w-0">
-              <div className="flex items-center flex-shrink-0">
-                <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center">
-                  <span className="text-black font-bold text-lg">ROCK</span>
-                </div>
-              </div>
+    <div className="min-h-screen bg-gray-50">
+      <DashboardHeader currentPage="Edit Branch" />
 
-              <nav className="hidden md:flex space-x-3 lg:space-x-6 overflow-x-auto">
-                <button
-                  onClick={() => router.push("/dashboard")}
-                  className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap"
-                >
-                  Dashboard
-                </button>
-                <button
-                  onClick={() => router.push("/dashboard/branches")}
-                  className="text-yellow-500 font-medium border-b-2 border-yellow-500 pb-4 text-sm whitespace-nowrap"
-                >
-                  Branches
-                </button>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Masters
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Students
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Member ship
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Revenue
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Attendance
-                </a>
-                <a href="#" className="text-gray-600 hover:text-gray-900 pb-4 text-sm whitespace-nowrap">
-                  Reports
-                </a>
-                <MoreHorizontal className="w-5 h-5 text-gray-400 flex-shrink-0" />
-              </nav>
-            </div>
-
-            <div className="flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
-              <div className="relative hidden lg:block">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Try searching: User Name, Course Name, User ID"
-                  className="pl-10 w-64 xl:w-80 bg-gray-50"
-                />
-              </div>
-
-              <div className="relative">
-                <Bell className="w-5 h-5 text-gray-600" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full"></div>
-              </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src="/placeholder.svg" />
-                      <AvatarFallback>SA</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium hidden lg:inline">Super admin</span>
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+      <main className="w-full p-4 lg:p-6">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/dashboard/branches")}
+              className="flex items-center space-x-2 hover:bg-gray-100"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Branches</span>
+            </Button>
+            <div className="w-px h-6 bg-gray-300"></div>
+            <h1 className="text-2xl font-bold text-gray-900">Edit Branch</h1>
           </div>
         </div>
-      </header>
 
-      <main className="w-full p-4 lg:p-6 overflow-x-hidden">
-        {/* Page Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Edit Branch</h1>
-          <Button
-            variant="outline"
-            className="flex items-center space-x-2 bg-transparent"
-            onClick={() => router.push("/dashboard/branches")}
-          >
-            <span>Back to Branches</span>
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column */}
-          <div className="space-y-6">
-            {/* Branch Information */}
-            <Card>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 2x2 Card Grid Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Left Card - Branch & Address Information */}
+            <Card className="h-fit">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold">Branch informaion</CardTitle>
+                <CardTitle className="flex items-center space-x-2">
+                  <Building className="w-5 h-5 text-yellow-600" />
+                  <span>Branch & Address Information</span>
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="branchName" className="text-sm font-medium">
-                      Branch Name
-                    </Label>
-                    <Input
-                      id="branchName"
-                      value={formData.branchName}
-                      onChange={(e) => handleInputChange("branchName", e.target.value)}
-                      className="mt-1"
-                    />
+                {/* Branch Basic Info */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="branchName">Branch Name *</Label>
+                      <Input
+                        id="branchName"
+                        value={formData.branch.name}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          branch: { ...formData.branch, name: e.target.value }
+                        })}
+                        placeholder="Enter branch name"
+                        className={errors.branchName ? "border-red-500" : ""}
+                      />
+                      {errors.branchName && <p className="text-red-500 text-sm">{errors.branchName}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="branchCode">Branch Code *</Label>
+                      <Input
+                        id="branchCode"
+                        value={formData.branch.code}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          branch: { ...formData.branch, code: e.target.value }
+                        })}
+                        placeholder="Enter branch code (e.g., RMA01)"
+                        className={errors.branchCode ? "border-red-500" : ""}
+                      />
+                      {errors.branchCode && <p className="text-red-500 text-sm">{errors.branchCode}</p>}
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="branchCode" className="text-sm font-medium">
-                      Branch Code
-                    </Label>
-                    <Input
-                      id="branchCode"
-                      value={formData.branchCode}
-                      onChange={(e) => handleInputChange("branchCode", e.target.value)}
-                      className="mt-1"
-                    />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="branchEmail">Email *</Label>
+                      <Input
+                        id="branchEmail"
+                        type="email"
+                        value={formData.branch.email}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          branch: { ...formData.branch, email: e.target.value }
+                        })}
+                        placeholder="Enter branch email"
+                        className={errors.branchEmail ? "border-red-500" : ""}
+                      />
+                      {errors.branchEmail && <p className="text-red-500 text-sm">{errors.branchEmail}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="branchPhone">Phone *</Label>
+                      <Input
+                        id="branchPhone"
+                        value={formData.branch.phone}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          branch: { ...formData.branch, phone: e.target.value }
+                        })}
+                        placeholder="Enter phone number"
+                        className={errors.branchPhone ? "border-red-500" : ""}
+                      />
+                      {errors.branchPhone && <p className="text-red-500 text-sm">{errors.branchPhone}</p>}
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="branchEmail" className="text-sm font-medium">
-                      Branch Email ID
-                    </Label>
-                    <Input
-                      id="branchEmail"
-                      value={formData.branchEmail}
-                      onChange={(e) => handleInputChange("branchEmail", e.target.value)}
-                      className="mt-1"
-                    />
+                {/* Address Section */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <MapPin className="w-4 h-4 text-yellow-600" />
+                    <span className="font-medium">Address Details</span>
                   </div>
-                  <div>
-                    <Label htmlFor="branchContact" className="text-sm font-medium">
-                      Branch Contact number
-                    </Label>
-                    <div className="flex mt-1">
-                      <Select
-                        value={formData.countryCode}
-                        onValueChange={(value) => handleInputChange("countryCode", value)}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="+1">+1</SelectItem>
-                          <SelectItem value="+91">+91</SelectItem>
-                        </SelectContent>
-                      </Select>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="addressLine1">Address Line 1 *</Label>
                       <Input
-                        value={formData.contactNumber}
-                        onChange={(e) => handleInputChange("contactNumber", e.target.value)}
-                        className="flex-1 ml-2"
+                        id="addressLine1"
+                        value={formData.branch.address.line1}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          branch: {
+                            ...formData.branch,
+                            address: { ...formData.branch.address, line1: e.target.value }
+                          }
+                        })}
+                        placeholder="Enter street address"
+                        className={errors.addressLine1 ? "border-red-500" : ""}
+                      />
+                      {errors.addressLine1 && <p className="text-red-500 text-sm">{errors.addressLine1}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="area">Area/Locality</Label>
+                      <Input
+                        id="area"
+                        value={formData.branch.address.area}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          branch: {
+                            ...formData.branch,
+                            address: { ...formData.branch.address, area: e.target.value }
+                          }
+                        })}
+                        placeholder="Enter area or locality"
                       />
                     </div>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="address" className="text-sm font-medium">
-                      Address
-                    </Label>
-                    <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => handleInputChange("address", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="area" className="text-sm font-medium">
-                      Area
-                    </Label>
-                    <Select value={formData.area} onValueChange={(value) => handleInputChange("area", value)}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="madhapur">Madhapur</SelectItem>
-                        <SelectItem value="hitech-city">Hitech City</SelectItem>
-                        <SelectItem value="gachibowli">Gachibowli</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="city" className="text-sm font-medium">
-                      City
-                    </Label>
-                    <Input
-                      id="city"
-                      value={formData.city}
-                      onChange={(e) => handleInputChange("city", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="state" className="text-sm font-medium">
-                      State
-                    </Label>
-                    <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="telangana">Telangana</SelectItem>
-                        <SelectItem value="andhra-pradesh">Andhra Pradesh</SelectItem>
-                        <SelectItem value="karnataka">Karnataka</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="zipCode" className="text-sm font-medium">
-                      Zip Code/Pin Code
-                    </Label>
-                    <Input
-                      id="zipCode"
-                      value={formData.zipCode}
-                      onChange={(e) => handleInputChange("zipCode", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="country" className="text-sm font-medium">
-                      Country
-                    </Label>
-                    <Select value={formData.country} onValueChange={(value) => handleInputChange("country", value)}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="india">India</SelectItem>
-                        <SelectItem value="usa">USA</SelectItem>
-                        <SelectItem value="uk">UK</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Assign to Branch */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Assign to Branch</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium">Accessories Available this branch?</Label>
-                  <RadioGroup
-                    value={formData.accessories}
-                    onValueChange={(value) => handleInputChange("accessories", value)}
-                    className="flex space-x-6 mt-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="yes" id="yes" />
-                      <Label htmlFor="yes">Yes</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="no" id="no" />
-                      <Label htmlFor="no">No</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Select Courses</Label>
-                    <div className="mt-2 space-y-2 max-h-40 overflow-y-auto border rounded p-3">
-                      {["Taekwondo", "Karate", "Kung Fu", "Mixed Martial Arts", "Zumba Dance", "Bharath Natyam"].map(
-                        (course) => (
-                          <div key={course} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={course}
-                              checked={formData.selectedCourses.includes(course)}
-                              onCheckedChange={(checked) => handleCourseChange(course, checked as boolean)}
-                            />
-                            <Label htmlFor={course} className="text-sm">
-                              {course}
-                            </Label>
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Branch admin</Label>
-                    <div className="mt-2 space-y-2 max-h-40 overflow-y-auto border rounded p-3">
-                      {["Coach-1", "Coach-2", "Coach-3", "Coach-4", "Coach-5", "Coach-6"].map((coach) => (
-                        <div key={coach} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={coach}
-                            checked={formData.selectedCoaches.includes(coach)}
-                            onCheckedChange={(checked) => handleCoachChange(coach, checked as boolean)}
-                          />
-                          <Label htmlFor={coach} className="text-sm">
-                            {coach}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Branch Manager / Instructor Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Branch Manager / Instructor Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="managerName" className="text-sm font-medium">
-                      Branch Manager Name
-                    </Label>
-                    <Input
-                      id="managerName"
-                      value={formData.managerName}
-                      onChange={(e) => handleInputChange("managerName", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="designation" className="text-sm font-medium">
-                      Designation
-                    </Label>
-                    <Select
-                      value={formData.designation}
-                      onValueChange={(value) => handleInputChange("designation", value)}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="instructor">Instructor</SelectItem>
-                        <SelectItem value="assistant">Assistant</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Operational Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Operational Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="coursesOffered" className="text-sm font-medium">
-                      Courses Offerd
-                    </Label>
-                    <Select
-                      value={formData.coursesOffered}
-                      onValueChange={(value) => handleInputChange("coursesOffered", value)}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="martial-arts">Rock martial arts</SelectItem>
-                        <SelectItem value="karate">Karate</SelectItem>
-                        <SelectItem value="taekwondo">Taekwondo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Branch Timings</Label>
-                    <div className="flex space-x-2 mt-1">
-                      <Select
-                        value={formData.selectedDay}
-                        onValueChange={(value) => handleInputChange("selectedDay", value)}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="monday">Monday</SelectItem>
-                          <SelectItem value="tuesday">Tuesday</SelectItem>
-                          <SelectItem value="wednesday">Wednesday</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <div className="relative flex-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city">City *</Label>
                         <Input
-                          value={formData.timings}
-                          onChange={(e) => handleInputChange("timings", e.target.value)}
-                          placeholder="Timings"
+                          id="city"
+                          value={formData.branch.address.city}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            branch: {
+                              ...formData.branch,
+                              address: { ...formData.branch.address, city: e.target.value }
+                            }
+                          })}
+                          placeholder="Enter city"
+                          className={errors.city ? "border-red-500" : ""}
                         />
-                        <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        {errors.city && <p className="text-red-500 text-sm">{errors.city}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="state">State *</Label>
+                        <Select
+                          value={formData.branch.address.state}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            branch: {
+                              ...formData.branch,
+                              address: { ...formData.branch.address, state: value }
+                            }
+                          })}
+                        >
+                          <SelectTrigger className={errors.state ? "border-red-500" : ""}>
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Andhra Pradesh">Andhra Pradesh</SelectItem>
+                            <SelectItem value="Telangana">Telangana</SelectItem>
+                            <SelectItem value="Karnataka">Karnataka</SelectItem>
+                            <SelectItem value="Tamil Nadu">Tamil Nadu</SelectItem>
+                            <SelectItem value="Kerala">Kerala</SelectItem>
+                            <SelectItem value="Maharashtra">Maharashtra</SelectItem>
+                            <SelectItem value="Gujarat">Gujarat</SelectItem>
+                            <SelectItem value="Rajasthan">Rajasthan</SelectItem>
+                            <SelectItem value="Uttar Pradesh">Uttar Pradesh</SelectItem>
+                            <SelectItem value="Delhi">Delhi</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {errors.state && <p className="text-red-500 text-sm">{errors.state}</p>}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="pincode">Pincode *</Label>
+                        <Input
+                          id="pincode"
+                          value={formData.branch.address.pincode}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            branch: {
+                              ...formData.branch,
+                              address: { ...formData.branch.address, pincode: e.target.value }
+                            }
+                          })}
+                          placeholder="Enter pincode"
+                          className={errors.pincode ? "border-red-500" : ""}
+                        />
+                        {errors.pincode && <p className="text-red-500 text-sm">{errors.pincode}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="country">Country</Label>
+                        <Select
+                          value={formData.branch.address.country}
+                          onValueChange={(value) => setFormData({
+                            ...formData,
+                            branch: {
+                              ...formData.branch,
+                              address: { ...formData.branch.address, country: value }
+                            }
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="India">India</SelectItem>
+                            <SelectItem value="USA">USA</SelectItem>
+                            <SelectItem value="UK">UK</SelectItem>
+                            <SelectItem value="Canada">Canada</SelectItem>
+                            <SelectItem value="Australia">Australia</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
                 </div>
-
-                <div>
-                  <Label className="text-sm font-medium">Set Holiday calender</Label>
-                  <div className="relative mt-1">
-                    <Input
-                      value={formData.holidayDates}
-                      onChange={(e) => handleInputChange("holidayDates", e.target.value)}
-                      placeholder="Select Dates"
-                    />
-                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                {/* Branch Manager */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Users className="w-4 h-4 text-yellow-600" />
+                    <span className="font-medium">Branch Manager</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="managerId">Select Branch Manager</Label>
+                    <Select
+                      value={formData.manager_id}
+                      onValueChange={(value) => setFormData({ ...formData, manager_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a manager" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableManagers.map((manager) => (
+                          <SelectItem key={manager.id} value={manager.id}>
+                            {manager.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Bank Details */}
-            <Card>
+            {/* Top Right Card - Operational Details */}
+            <Card className="h-fit">
               <CardHeader>
-                <CardTitle className="text-lg font-semibold">Bank Details</CardTitle>
+                <CardTitle className="flex items-center space-x-2">
+                  <Clock className="w-5 h-5 text-yellow-600" />
+                  <span>Operational Details</span>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="bankName" className="text-sm font-medium">
-                      Bank Name
-                    </Label>
-                    <Select value={formData.bankName} onValueChange={(value) => handleInputChange("bankName", value)}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="sbi">State bank of india</SelectItem>
-                        <SelectItem value="hdfc">HDFC Bank</SelectItem>
-                        <SelectItem value="icici">ICICI Bank</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <CardContent className="space-y-6">
+                {/* Courses Offered */}
+                <div className="space-y-2">
+                  <Label>Courses Offered *</Label>
+                  <div className="grid grid-cols-1 gap-3 max-h-48 overflow-y-auto">
+                    {availableCourses.map((course) => (
+                      <div key={course.name} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`course-offered-${course.name}`}
+                          checked={formData.operational_details.courses_offered.includes(course.name)}
+                          onCheckedChange={() => {
+                            const isSelected = formData.operational_details.courses_offered.includes(course.name)
+                            const updatedCourses = isSelected
+                              ? formData.operational_details.courses_offered.filter(c => c !== course.name)
+                              : [...formData.operational_details.courses_offered, course.name]
+
+                            setFormData({
+                              ...formData,
+                              operational_details: {
+                                ...formData.operational_details,
+                                courses_offered: updatedCourses
+                              }
+                            })
+                          }}
+                        />
+                        <Label htmlFor={`course-offered-${course.name}`} className="text-sm cursor-pointer">
+                          {course.name}
+                        </Label>
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <Label htmlFor="accountNumber" className="text-sm font-medium">
-                      Account number
-                    </Label>
-                    <Input
-                      id="accountNumber"
-                      value={formData.accountNumber}
-                      onChange={(e) => handleInputChange("accountNumber", e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
+                  {errors.coursesOffered && <p className="text-red-500 text-sm">{errors.coursesOffered}</p>}
+
+                  {formData.operational_details.courses_offered.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.operational_details.courses_offered.map((course) => (
+                        <Badge key={course} variant="secondary" className="bg-yellow-100 text-yellow-800">
+                          {course}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedCourses = formData.operational_details.courses_offered.filter(c => c !== course)
+                              setFormData({
+                                ...formData,
+                                operational_details: {
+                                  ...formData.operational_details,
+                                  courses_offered: updatedCourses
+                                }
+                              })
+                            }}
+                            className="ml-2 hover:text-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <Label htmlFor="upiId" className="text-sm font-medium">
-                    UPI ID
-                  </Label>
+                {/* Operating Hours - Dynamic */}
+                <div className="space-y-2">
+                  <Label>Operating Hours</Label>
+
+                  {/* Add New Timing Form */}
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Day</Label>
+                        <Select
+                          value={newTiming.day}
+                          onValueChange={(value) => setNewTiming(prev => ({ ...prev, day: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select day" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {daysOfWeek.map((day) => (
+                              <SelectItem key={day} value={day}>
+                                {day}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Open Time</Label>
+                        <Input
+                          type="time"
+                          value={newTiming.open}
+                          onChange={(e) => setNewTiming(prev => ({ ...prev, open: e.target.value }))}
+                          className="text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Close Time</Label>
+                        <Input
+                          type="time"
+                          value={newTiming.close}
+                          onChange={(e) => setNewTiming(prev => ({ ...prev, close: e.target.value }))}
+                          className="text-xs"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addTiming}
+                        disabled={!newTiming.day}
+                        className="bg-yellow-50 hover:bg-yellow-100 border-yellow-300"
+                      >
+                        {formData.operational_details.timings.some(t => t.day === newTiming.day) ? 'Update' : 'Add'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Display Added Timings */}
+                  {formData.operational_details.timings.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <Label className="text-sm font-medium">Configured Operating Hours:</Label>
+                      {formData.operational_details.timings.map((timing, index) => (
+                        <div key={`${timing.day}-${index}`} className="grid grid-cols-4 gap-2 items-center p-2 bg-white border rounded">
+                          <div className="font-medium text-sm">{timing.day}</div>
+                          <Input
+                            type="time"
+                            value={timing.open}
+                            onChange={(e) => handleTimingChange(index, 'open', e.target.value)}
+                            className="text-xs"
+                          />
+                          <Input
+                            type="time"
+                            value={timing.close}
+                            onChange={(e) => handleTimingChange(index, 'close', e.target.value)}
+                            className="text-xs"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeTiming(index)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {formData.operational_details.timings.length === 0 && (
+                    <p className="text-sm text-gray-500 italic">No operating hours configured yet. Add days and times above.</p>
+                  )}
+                </div>
+
+                {/* Holidays */}
+                <div className="space-y-2">
+                  <Label>Holidays</Label>
+                  <div className="flex space-x-2">
+                    <Input
+                      type="date"
+                      id="holidayDate"
+                      className="text-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          const input = e.target as HTMLInputElement
+                          addHoliday(input.value)
+                          input.value = ''
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const input = document.getElementById('holidayDate') as HTMLInputElement
+                        addHoliday(input.value)
+                        input.value = ''
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+
+                  {formData.operational_details.holidays.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2 max-h-24 overflow-y-auto">
+                      {formData.operational_details.holidays.map((holiday, index) => (
+                        <Badge key={holiday} variant="secondary" className="bg-blue-100 text-blue-800">
+                          {holiday}
+                          <button
+                            type="button"
+                            onClick={() => removeHoliday(index)}
+                            className="ml-2 hover:text-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bottom Left Card - Course & Staff Assignments */}
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Users className="w-5 h-5 text-yellow-600" />
+                  <span>Course & Staff Assignments</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Accessories Available */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="accessoriesAvailable"
+                    checked={formData.assignments.accessories_available}
+                    onCheckedChange={(checked) => setFormData({
+                      ...formData,
+                      assignments: { ...formData.assignments, accessories_available: checked }
+                    })}
+                  />
+                  <Label htmlFor="accessoriesAvailable">Accessories Available at Branch</Label>
+                </div>
+
+                {/* Course Assignments */}
+                <div className="space-y-2">
+                  <Label>Assign Courses to Branch</Label>
+                  <div className="grid grid-cols-1 gap-3 max-h-40 overflow-y-auto">
+                    {availableCourses.map((course) => (
+                      <div key={course.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`course-assign-${course.id}`}
+                          checked={formData.assignments.courses.includes(course.id)}
+                          onCheckedChange={() => {
+                            const isSelected = formData.assignments.courses.includes(course.id)
+                            const updatedCourses = isSelected
+                              ? formData.assignments.courses.filter(c => c !== course.id)
+                              : [...formData.assignments.courses, course.id]
+
+                            setFormData({
+                              ...formData,
+                              assignments: {
+                                ...formData.assignments,
+                                courses: updatedCourses
+                              }
+                            })
+                          }}
+                        />
+                        <Label htmlFor={`course-assign-${course.id}`} className="text-sm cursor-pointer">
+                          {course.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+
+                  {formData.assignments.courses.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2 max-h-24 overflow-y-auto">
+                      {formData.assignments.courses.map((courseId) => {
+                        const course = availableCourses.find(c => c.id === courseId)
+                        return course ? (
+                          <Badge key={courseId} variant="secondary" className="bg-green-100 text-green-800">
+                            {course.name}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedCourses = formData.assignments.courses.filter(c => c !== courseId)
+                                setFormData({
+                                  ...formData,
+                                  assignments: {
+                                    ...formData.assignments,
+                                    courses: updatedCourses
+                                  }
+                                })
+                              }}
+                              className="ml-2 hover:text-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </Badge>
+                        ) : null
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Branch Admins */}
+                <div className="space-y-2">
+                  <Label>Branch Administrators</Label>
+                  <div className="grid grid-cols-1 gap-3 max-h-32 overflow-y-auto">
+                    {availableAdmins.map((admin) => (
+                      <div key={admin.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`admin-${admin.id}`}
+                          checked={formData.assignments.branch_admins.includes(admin.id)}
+                          onCheckedChange={() => {
+                            const isSelected = formData.assignments.branch_admins.includes(admin.id)
+                            const updatedAdmins = isSelected
+                              ? formData.assignments.branch_admins.filter(a => a !== admin.id)
+                              : [...formData.assignments.branch_admins, admin.id]
+
+                            setFormData({
+                              ...formData,
+                              assignments: {
+                                ...formData.assignments,
+                                branch_admins: updatedAdmins
+                              }
+                            })
+                          }}
+                        />
+                        <Label htmlFor={`admin-${admin.id}`} className="text-sm cursor-pointer">
+                          {admin.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+
+                  {formData.assignments.branch_admins.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.assignments.branch_admins.map((adminId) => {
+                        const admin = availableAdmins.find(a => a.id === adminId)
+                        return admin ? (
+                          <Badge key={adminId} variant="secondary" className="bg-purple-100 text-purple-800">
+                            {admin.name}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedAdmins = formData.assignments.branch_admins.filter(a => a !== adminId)
+                                setFormData({
+                                  ...formData,
+                                  assignments: {
+                                    ...formData.assignments,
+                                    branch_admins: updatedAdmins
+                                  }
+                                })
+                              }}
+                              className="ml-2 hover:text-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </Badge>
+                        ) : null
+                      })}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bottom Right Card - Bank Details */}
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <CreditCard className="w-5 h-5 text-yellow-600" />
+                  <span>Bank Details</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bankName">Bank Name</Label>
+                  <Input
+                    id="bankName"
+                    value={formData.bank_details.bank_name}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      bank_details: { ...formData.bank_details, bank_name: e.target.value }
+                    })}
+                    placeholder="Enter bank name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="accountNumber">Account Number</Label>
+                  <Input
+                    id="accountNumber"
+                    value={formData.bank_details.account_number}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      bank_details: { ...formData.bank_details, account_number: e.target.value }
+                    })}
+                    placeholder="Enter account number"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="upiId">UPI ID</Label>
                   <Input
                     id="upiId"
-                    value={formData.upiId}
-                    onChange={(e) => handleInputChange("upiId", e.target.value)}
-                    className="mt-1"
+                    value={formData.bank_details.upi_id}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      bank_details: { ...formData.bank_details, upi_id: e.target.value }
+                    })}
+                    placeholder="Enter UPI ID"
                   />
                 </div>
               </CardContent>
             </Card>
-
-            {/* Save Changes Button */}
-            <div className="flex justify-end">
-              <Button onClick={handleSaveChanges} className="bg-yellow-400 hover:bg-yellow-500 text-black px-8 py-2">
-                Save Changes
-              </Button>
-            </div>
           </div>
-        </div>
-      </main>
 
-      <Dialog open={showSuccessPopup} onOpenChange={setShowSuccessPopup}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-center space-x-2">
-              <CheckCircle className="w-6 h-6 text-green-500" />
-              <span>Success!</span>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="text-center py-4">
-            <p className="text-gray-600 mb-6">Branch has been updated successfully!</p>
-            <Button onClick={handlePopupClose} className="bg-yellow-400 hover:bg-yellow-500 text-black px-8">
-              OK
+          {/* Submit Button */}
+          <div className="flex justify-end space-x-4 pt-6 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push("/dashboard/branches")}
+              className="px-6 py-2"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="bg-yellow-400 hover:bg-yellow-500 text-black px-6 py-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Updating Branch...
+                </>
+              ) : (
+                'Update Branch'
+              )}
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </form>
+
+        {/* Success Popup */}
+        {showSuccessPopup && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Branch Updated!</h3>
+                <p className="text-gray-600 mb-4">The branch has been successfully updated.</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   )
 }
