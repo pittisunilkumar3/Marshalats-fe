@@ -1,11 +1,42 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRegistration } from "@/contexts/RegistrationContext"
+import { toast } from "@/components/ui/use-toast"
+
+interface Course {
+  id: string;
+  title: string;
+  code: string;
+  description: string;
+  difficulty_level: string;
+  pricing: {
+    currency: string;
+    amount: number;
+  };
+  duration_options: string[];
+  category_id: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  icon_url: string | null;
+  color_code: string;
+  course_count: number;
+  subcategories: Array<{
+    id: string;
+    name: string;
+    code: string;
+    course_count: number;
+  }>;
+}
 
 export default function SelectCoursePage() {
   const router = useRouter()
@@ -16,56 +47,129 @@ export default function SelectCoursePage() {
     course_id: registrationData.course_id || "",
     duration: registrationData.duration || "",
   })
+  const [categories, setCategories] = useState<Category[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Temporary categories data
-  const tempCategories = [
-    { id: "martial-arts", name: "Martial Arts" },
-    { id: "fitness", name: "Fitness" },
-    { id: "self-defense", name: "Self Defense" },
-    { id: "kids-programs", name: "Kids Programs" }
-  ]
+  const [courses, setCourses] = useState<Course[]>([])
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false)
 
-  // Temporary courses data
-  const tempCourses = [
-    { id: "karate-101", name: "Basic Karate", category_id: "martial-arts", duration: "3-months" },
-    { id: "karate-201", name: "Advanced Karate", category_id: "martial-arts", duration: "6-months" },
-    { id: "taekwondo-101", name: "Basic Taekwondo", category_id: "martial-arts", duration: "3-months" },
-    { id: "kickboxing-101", name: "Kickboxing Fundamentals", category_id: "fitness", duration: "1-month" },
-    { id: "kickboxing-201", name: "Advanced Kickboxing", category_id: "fitness", duration: "3-months" },
-    { id: "selfdef-101", name: "Women's Self Defense", category_id: "self-defense", duration: "1-month" },
-    { id: "selfdef-201", name: "Street Self Defense", category_id: "self-defense", duration: "3-months" },
-    { id: "kids-karate", name: "Kids Karate (5-12 years)", category_id: "kids-programs", duration: "6-months" },
-    { id: "kids-taekwondo", name: "Kids Taekwondo (8-15 years)", category_id: "kids-programs", duration: "6-months" },
-    { id: "mma-basics", name: "MMA Basics", category_id: "martial-arts", duration: "6-months" },
-    { id: "fitness-bootcamp", name: "Fitness Bootcamp", category_id: "fitness", duration: "1-month" }
-  ]
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setIsLoading(true)
+        const response = await fetch('http://localhost:8001/categories/public/details?active_only=true')
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch categories')
+        }
+        
+        const data = await response.json()
+        setCategories(data.categories || [])
+      } catch (err) {
+        console.error('Error fetching categories:', err)
+        setError('Failed to load categories. Please try again later.')
+        toast({
+          title: "Error",
+          description: "Failed to load categories. Please try again later.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-  // Temporary duration options
-  const tempDurations = [
-    { id: "1-month", name: "1 Month" },
-    { id: "3-months", name: "3 Months" },
-    { id: "6-months", name: "6 Months" },
-    { id: "12-months", name: "12 Months" }
-  ]
+    fetchCategories()
+  }, [])
 
-  // Filter courses based on selected category
-  const filteredCourses = formData.category_id 
-    ? tempCourses.filter(course => course.category_id === formData.category_id)
-    : tempCourses
+  // Fetch courses when category is selected
+  useEffect(() => {
+    const fetchCourses = async () => {
+      if (!formData.category_id) return
+      
+      try {
+        setIsLoadingCourses(true)
+        const response = await fetch(`/api/categories/${formData.category_id}/courses?active_only=true`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch courses')
+        }
+        
+        const data = await response.json()
+        setCourses(data.courses || [])
+      } catch (err) {
+        console.error('Error fetching courses:', err)
+        setError('Failed to load courses. Please try again.')
+        toast({
+          title: "Error",
+          description: "Failed to load courses. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingCourses(false)
+      }
+    }
+
+    if (formData.category_id) {
+      fetchCourses()
+    } else {
+      setCourses([])
+      setFormData(prev => ({ ...prev, course_id: '', duration: '' }))
+    }
+  }, [formData.category_id])
+
+  // Get selected category and course
+  const selectedCategory = categories.find(cat => cat.id === formData.category_id)
+  const selectedCourse = courses.find(course => course.id === formData.course_id)
+  
+  // Get duration options for selected course
+  const durationOptions = selectedCourse?.duration_options?.map((duration: string) => ({
+    id: duration,
+    name: duration
+  })) || []
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!formData.category_id || !formData.course_id || !formData.duration) {
+      toast({
+        title: "Incomplete Selection",
+        description: "Please select a category, course, and duration",
+        variant: "destructive",
+      })
+      return
+    }
+    
     // Update registration context with course data
     updateRegistrationData({
       category_id: formData.category_id,
       course_id: formData.course_id,
       duration: formData.duration,
+      course_name: selectedCourse?.title || "",
+      category_name: selectedCategory?.name || "",
     })
     router.push("/register/select-branch")
   }
 
   const handleSelectChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (field === 'category_id') {
+      // Reset course and duration when category changes
+      setFormData(prev => ({
+        ...prev,
+        category_id: value,
+        course_id: "",
+        duration: ""
+      }))
+    } else if (field === 'course_id') {
+      // Reset duration when course changes
+      setFormData(prev => ({
+        ...prev,
+        course_id: value,
+        duration: ""
+      }))
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }))
+    }
   }
 
   return (
@@ -89,7 +193,22 @@ export default function SelectCoursePage() {
             <p className="text-gray-500 text-sm">Choose your preferred course and duration to continue.</p>
           </div>
 
-          {/* Course Selection Form */}
+          {isLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-red-500">{error}</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={handleNextStep} className="space-y-6">
             {/* Select Category */}
             <div className="relative">
@@ -98,14 +217,18 @@ export default function SelectCoursePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 7a2 2 0 012-2h10a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
-              <Select value={formData.category_id} onValueChange={(value) => handleSelectChange("category_id", value)}>
-                <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
-                  <SelectValue placeholder="Select Category" className="text-gray-500" />
+              <Select
+                value={formData.category_id}
+                onValueChange={(value) => handleSelectChange("category_id", value)}
+                disabled={isLoading || categories.length === 0}
+              >
+                <SelectTrigger className="w-full pl-12 py-6 text-base">
+                  <SelectValue placeholder={isLoading ? "Loading categories..." : "Select a category"} />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  {tempCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id} className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
-                      {category.name}
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name} ({category.course_count} courses)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -119,14 +242,34 @@ export default function SelectCoursePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
-              <Select value={formData.course_id} onValueChange={(value) => handleSelectChange("course_id", value)}>
-                <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
-                  <SelectValue placeholder="Choose Course" className="text-gray-500" />
+              <Select
+                value={formData.course_id}
+                onValueChange={(value) => handleSelectChange("course_id", value)}
+                disabled={!formData.category_id || isLoadingCourses}
+              >
+                <SelectTrigger className="w-full pl-12 py-6 text-base">
+                  <SelectValue 
+                    placeholder={
+                      isLoadingCourses 
+                        ? "Loading courses..." 
+                        : !formData.category_id 
+                          ? "Select a category first" 
+                          : courses.length === 0 
+                            ? "No courses available" 
+                            : "Select a course"
+                    } 
+                  />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  {filteredCourses.map((course) => (
-                    <SelectItem key={course.id} value={course.id} className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
-                      {course.name}
+                <SelectContent>
+                  {courses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{course.title}</span>
+                        <span className="text-xs text-gray-500">{course.code} • {course.difficulty_level}</span>
+                        <span className="text-sm font-semibold mt-1">
+                          {course.pricing.currency} {course.pricing.amount}
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -140,13 +283,19 @@ export default function SelectCoursePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <Select value={formData.duration} onValueChange={(value) => handleSelectChange("duration", value)}>
-                <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
-                  <SelectValue placeholder="Select Duration" className="text-gray-500" />
+              <Select
+                value={formData.duration}
+                onValueChange={(value) => handleSelectChange("duration", value)}
+                disabled={!formData.course_id || durationOptions.length === 0}
+              >
+                <SelectTrigger className="w-full pl-12 py-6 text-base">
+                  <SelectValue 
+                    placeholder={!formData.course_id ? "Select a course first" : durationOptions.length === 0 ? "No duration options available" : "Select duration"} 
+                  />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  {tempDurations.map((duration) => (
-                    <SelectItem key={duration.id} value={duration.id} className="!py-3 !px-3 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                <SelectContent>
+                  {durationOptions.map((duration) => (
+                    <SelectItem key={duration.id} value={duration.id}>
                       {duration.name}
                     </SelectItem>
                   ))}
@@ -155,13 +304,15 @@ export default function SelectCoursePage() {
             </div>
 
             {/* Next Step Button */}
-            <Button
-              type="submit"
-              className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-4 px-6 rounded-xl text-lg h-14 transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl mt-8"
+            <Button 
+              type="submit" 
+              className="w-full py-6 text-base"
+              disabled={!formData.category_id || !formData.course_id || !formData.duration}
             >
-              NEXT STEP
+              Continue
             </Button>
           </form>
+          )}
 
           {/* Step Indicator */}
           <div className="text-center py-4">
