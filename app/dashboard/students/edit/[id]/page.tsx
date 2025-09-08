@@ -147,7 +147,7 @@ export default function EditStudent() {
           (async () => {
             try {
               setIsLoadingLocations(true)
-              const locationsResponse = await fetch('http://localhost:8003/locations/public/details?active_only=true')
+              const locationsResponse = await fetch('http://82.29.165.77:8003/locations/public/details?active_only=true')
               if (locationsResponse.ok) {
                 const locationsData = await locationsResponse.json()
                 setLocations(locationsData.locations || [])
@@ -163,7 +163,7 @@ export default function EditStudent() {
           (async () => {
             try {
               setIsLoadingBranches(true)
-              const branchesResponse = await fetch('http://localhost:8003/locations/public/with-branches?active_only=true')
+              const branchesResponse = await fetch('http://82.29.165.77:8003/locations/public/with-branches?active_only=true')
               if (branchesResponse.ok) {
                 const branchesData = await branchesResponse.json()
 
@@ -189,7 +189,7 @@ export default function EditStudent() {
           (async () => {
             try {
               setIsLoadingCourses(true)
-              const coursesResponse = await fetch('http://localhost:8003/courses/public/all')
+              const coursesResponse = await fetch('http://82.29.165.77:8003/courses/public/all')
               if (coursesResponse.ok) {
                 const coursesData = await coursesResponse.json()
                 const allCourses = coursesData.courses || []
@@ -207,7 +207,7 @@ export default function EditStudent() {
           (async () => {
             try {
               setIsLoadingCategories(true)
-              const categoriesResponse = await fetch('http://localhost:8003/categories/public/details?active_only=true')
+              const categoriesResponse = await fetch('http://82.29.165.77:8003/categories/public/details?active_only=true')
               if (categoriesResponse.ok) {
                 const categoriesData = await categoriesResponse.json()
                 setCategories(categoriesData.categories || [])

@@ -88,11 +88,11 @@ export default function CourseAssignmentPage() {
 
         // Fetch students, courses, and branches in parallel
         const [studentsRes, coursesRes, branchesRes] = await Promise.all([
-          fetch('http://localhost:8003/users/students/details', {
+          fetch('http://82.29.165.77:8003/users/students/details', {
             headers: { 'Authorization': `Bearer ${token}` }
           }),
-          fetch('http://localhost:8003/courses/public/all'),
-          fetch('http://localhost:8003/branches', {
+          fetch('http://82.29.165.77:8003/courses/public/all'),
+          fetch('http://82.29.165.77:8003/branches', {
             headers: { 'Authorization': `Bearer ${token}` }
           })
         ])
@@ -136,7 +136,7 @@ export default function CourseAssignmentPage() {
       }
 
       try {
-        const response = await fetch(`http://localhost:8003/durations/public/by-course/${formData.course_id}`)
+        const response = await fetch(`http://82.29.165.77:8003/durations/public/by-course/${formData.course_id}`)
         if (response.ok) {
           const data = await response.json()
           setDurations(data.durations || [])
@@ -174,7 +174,7 @@ export default function CourseAssignmentPage() {
         notes: formData.notes
       }
 
-      const response = await fetch('http://localhost:8003/enrollments', {
+      const response = await fetch('http://82.29.165.77:8003/enrollments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

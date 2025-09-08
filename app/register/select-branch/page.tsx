@@ -51,7 +51,7 @@ export default function SelectBranchPage() {
         setIsLoadingBranches(true)
         setError(null)
 
-        const response = await fetch('http://localhost:8003/locations/public/with-branches?active_only=true')
+        const response = await fetch('http://82.29.165.77:8003/locations/public/with-branches?active_only=true')
 
         if (!response.ok) {
           throw new Error('Failed to fetch branches')
