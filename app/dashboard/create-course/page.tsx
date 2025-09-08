@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -34,6 +34,10 @@ export default function CreateCoursePage() {
     tokenLength: access_token?.length || 0,
     user: user ? { id: user.id, email: user.email, role: user.role } : null
   })
+  // Categories state
+  const [categories, setCategories] = useState<any[]>([])
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
+
   const [prerequisites, setPrerequisites] = useState<string[]>([])
   const [newPrerequisite, setNewPrerequisite] = useState("")
   const [formData, setFormData] = useState({
@@ -69,6 +73,34 @@ export default function CreateCoursePage() {
   const removePrerequisite = (index: number) => {
     setPrerequisites(prerequisites.filter((_, i) => i !== index))
   }
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setIsLoadingCategories(true)
+        const response = await fetch('http://localhost:8001/categories/public/details?active_only=true')
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch categories')
+        }
+
+        const data = await response.json()
+        setCategories(data.categories || [])
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load categories. Using default options.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingCategories(false)
+      }
+    }
+
+    fetchCategories()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -301,18 +333,23 @@ export default function CreateCoursePage() {
                         <Select
                           value={formData.category}
                           onValueChange={(value) => setFormData({ ...formData, category: value })}
+                          disabled={isLoadingCategories}
                         >
                           <SelectTrigger className="h-10 px-3 w-full">
-                            <SelectValue placeholder="Select category" />
+                            <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select category"} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="category-self-defense-uuid">Self Defense</SelectItem>
-                            <SelectItem value="category-fitness-uuid">Fitness & Conditioning</SelectItem>
-                            <SelectItem value="category-traditional-uuid">Traditional Martial Arts</SelectItem>
-                            <SelectItem value="category-competition-uuid">Competition Training</SelectItem>
-                            <SelectItem value="category-kids-uuid">Kids Program</SelectItem>
-                            <SelectItem value="category-adult-uuid">Adult Program</SelectItem>
-                            <SelectItem value="category-special-needs-uuid">Special Needs</SelectItem>
+                            {categories.length > 0 ? (
+                              categories.map((category) => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  {category.name} ({category.course_count} courses)
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-gray-500">
+                                <p>No categories available</p>
+                              </div>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>

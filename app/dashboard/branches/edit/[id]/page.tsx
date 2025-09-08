@@ -165,17 +165,17 @@ export default function EditBranch() {
         // Map API data to form structure
         setFormData({
           branch: {
-            name: branchData.name || "",
-            code: branchData.code || "",
-            email: branchData.email || "",
-            phone: branchData.phone || "",
+            name: branchData.branch?.name || "",
+            code: branchData.branch?.code || "",
+            email: branchData.branch?.email || "",
+            phone: branchData.branch?.phone || "",
             address: {
-              line1: branchData.address?.line1 || "",
-              area: branchData.address?.area || "",
-              city: branchData.address?.city || "",
-              state: branchData.address?.state || "",
-              pincode: branchData.address?.pincode || "",
-              country: branchData.address?.country || "India"
+              line1: branchData.branch?.address?.line1 || "",
+              area: branchData.branch?.address?.area || "",
+              city: branchData.branch?.address?.city || "",
+              state: branchData.branch?.address?.state || "",
+              pincode: branchData.branch?.address?.pincode || "",
+              country: branchData.branch?.address?.country || "India"
             }
           },
           manager_id: branchData.manager_id || "",

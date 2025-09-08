@@ -134,6 +134,45 @@ export default function CreateBranchPage() {
     { id: "coach-uuid-4", name: "Coach Maria Garcia" }
   ]
 
+  const indianStates = [
+    "Andhra Pradesh",
+    "Arunachal Pradesh",
+    "Assam",
+    "Bihar",
+    "Chhattisgarh",
+    "Goa",
+    "Gujarat",
+    "Haryana",
+    "Himachal Pradesh",
+    "Jharkhand",
+    "Karnataka",
+    "Kerala",
+    "Madhya Pradesh",
+    "Maharashtra",
+    "Manipur",
+    "Meghalaya",
+    "Mizoram",
+    "Nagaland",
+    "Odisha",
+    "Punjab",
+    "Rajasthan",
+    "Sikkim",
+    "Tamil Nadu",
+    "Telangana",
+    "Tripura",
+    "Uttar Pradesh",
+    "Uttarakhand",
+    "West Bengal",
+    "Delhi",
+    "Jammu and Kashmir",
+    "Ladakh",
+    "Chandigarh",
+    "Dadra and Nagar Haveli and Daman and Diu",
+    "Lakshadweep",
+    "Puducherry",
+    "Andaman and Nicobar Islands"
+  ]
+
   const bankOptions = [
     "State Bank of India",
     "HDFC Bank",
@@ -507,19 +546,27 @@ export default function CreateBranchPage() {
 
                       <div className="space-y-2">
                         <Label htmlFor="addressState">State *</Label>
-                        <Input
-                          id="addressState"
+                        <Select
                           value={formData.branch.address.state}
-                          onChange={(e) => setFormData({
+                          onValueChange={(value) => setFormData({
                             ...formData,
                             branch: {
                               ...formData.branch,
-                              address: { ...formData.branch.address, state: e.target.value }
+                              address: { ...formData.branch.address, state: value }
                             }
                           })}
-                          placeholder="State"
-                          className={errors.addressState ? "border-red-500" : ""}
-                        />
+                        >
+                          <SelectTrigger className={errors.addressState ? "border-red-500" : ""}>
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {indianStates.map((state) => (
+                              <SelectItem key={state} value={state}>
+                                {state}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         {errors.addressState && <p className="text-red-500 text-sm">{errors.addressState}</p>}
                       </div>
 

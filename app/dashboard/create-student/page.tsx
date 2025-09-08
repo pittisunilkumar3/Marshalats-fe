@@ -17,8 +17,8 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { branchAPI } from "@/lib/branchAPI"
 import { courseAPI } from "@/lib/courseAPI"
+import { useToast } from "@/hooks/use-toast"
 import DashboardHeader from "@/components/dashboard-header"
-import { TokenManager } from "@/lib/tokenManager"
 
 interface Branch {
   id: string
@@ -52,15 +52,23 @@ interface FormErrors {
 
 export default function CreateStudent() {
   const router = useRouter()
-  const { access_token, getAuthHeaders } = useAuth()
+  const { toast } = useToast()
   
   // Loading states
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  const [locations, setLocations] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([])
-  
+
+  // API Loading states
+  const [isLoadingLocations, setIsLoadingLocations] = useState(true)
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true)
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true)
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
+
   // Form state
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
@@ -108,112 +116,11 @@ export default function CreateStudent() {
     paymentPlan: "full",
   })
 
-  // Locations based on your business
-  const locations = [
-    { id: "hyderabad", name: "Hyderabad" },
-    { id: "bangalore", name: "Bangalore" },
-    { id: "chennai", name: "Chennai" },
-    { id: "mumbai", name: "Mumbai" },
-    { id: "delhi", name: "Delhi" },
-    { id: "pune", name: "Pune" },
-    { id: "kolkata", name: "Kolkata" },
-    { id: "ahmedabad", name: "Ahmedabad" }
-  ]
+  // Dynamic locations will be loaded from API
 
-  // Temporary branch data - this will be replaced by API data
-  const tempBranches: Branch[] = [
-    { id: "hyd-branch-001", name: "Hyderabad Main Branch", location_id: "hyderabad", address: "Banjara Hills, Hyderabad", code: "HYD001" },
-    { id: "hyd-branch-002", name: "Hyderabad HITEC City", location_id: "hyderabad", address: "HITEC City, Hyderabad", code: "HYD002" },
-    { id: "blr-branch-001", name: "Bangalore Koramangala", location_id: "bangalore", address: "Koramangala, Bangalore", code: "BLR001" },
-    { id: "blr-branch-002", name: "Bangalore Whitefield", location_id: "bangalore", address: "Whitefield, Bangalore", code: "BLR002" },
-    { id: "che-branch-001", name: "Chennai T Nagar", location_id: "chennai", address: "T Nagar, Chennai", code: "CHE001" },
-    { id: "che-branch-002", name: "Chennai OMR", location_id: "chennai", address: "OMR, Chennai", code: "CHE002" },
-    { id: "mum-branch-001", name: "Mumbai Andheri", location_id: "mumbai", address: "Andheri West, Mumbai", code: "MUM001" },
-    { id: "mum-branch-002", name: "Mumbai Bandra", location_id: "mumbai", address: "Bandra West, Mumbai", code: "MUM002" },
-    { id: "del-branch-001", name: "Delhi CP", location_id: "delhi", address: "Connaught Place, Delhi", code: "DEL001" },
-    { id: "del-branch-002", name: "Delhi Gurgaon", location_id: "delhi", address: "Gurgaon, Delhi NCR", code: "DEL002" },
-    { id: "pun-branch-001", name: "Pune FC Road", location_id: "pune", address: "FC Road, Pune", code: "PUN001" },
-    { id: "kol-branch-001", name: "Kolkata Salt Lake", location_id: "kolkata", address: "Salt Lake City, Kolkata", code: "KOL001" },
-    { id: "ahm-branch-001", name: "Ahmedabad SG Highway", location_id: "ahmedabad", address: "SG Highway, Ahmedabad", code: "AHM001" }
-  ]
+  // Dynamic branches will be loaded from API
 
-  // Temporary course data - this will be replaced by API data
-  const tempCourses: Course[] = [
-    { 
-      id: "karate-101", 
-      title: "Basic Karate", 
-      code: "KAR101",
-      description: "Learn fundamental karate techniques",
-      difficulty_level: "beginner",
-      category_id: "martial-arts", 
-      category_name: "Martial Arts",
-      duration: "3-months",
-      pricing: { amount: 5000, currency: "INR" }
-    },
-    { 
-      id: "karate-201", 
-      title: "Advanced Karate", 
-      code: "KAR201",
-      description: "Advanced karate techniques and forms",
-      difficulty_level: "advanced",
-      category_id: "martial-arts", 
-      category_name: "Martial Arts",
-      duration: "6-months",
-      pricing: { amount: 8000, currency: "INR" }
-    },
-    { 
-      id: "taekwondo-101", 
-      title: "Basic Taekwondo", 
-      code: "TKD101",
-      description: "Fundamental taekwondo kicks and forms",
-      difficulty_level: "beginner",
-      category_id: "martial-arts", 
-      category_name: "Martial Arts",
-      duration: "3-months",
-      pricing: { amount: 5500, currency: "INR" }
-    },
-    { 
-      id: "kickboxing-101", 
-      title: "Kickboxing Fundamentals", 
-      code: "KB101",
-      description: "High-intensity kickboxing workout",
-      difficulty_level: "beginner",
-      category_id: "fitness", 
-      category_name: "Fitness",
-      duration: "1-month",
-      pricing: { amount: 3000, currency: "INR" }
-    },
-    { 
-      id: "selfdef-101", 
-      title: "Women's Self Defense", 
-      code: "SD101",
-      description: "Essential self-defense techniques for women",
-      difficulty_level: "beginner",
-      category_id: "self-defense", 
-      category_name: "Self Defense",
-      duration: "1-month",
-      pricing: { amount: 2500, currency: "INR" }
-    },
-    { 
-      id: "kids-karate", 
-      title: "Kids Karate (5-12 years)", 
-      code: "KK101",
-      description: "Fun karate classes designed for children",
-      difficulty_level: "beginner",
-      category_id: "kids-programs", 
-      category_name: "Kids Programs",
-      duration: "6-months",
-      pricing: { amount: 4000, currency: "INR" }
-    }
-  ]
-
-  // Course categories
-  const categories = [
-    { id: "martial-arts", name: "Martial Arts" },
-    { id: "fitness", name: "Fitness" },
-    { id: "self-defense", name: "Self Defense" },
-    { id: "kids-programs", name: "Kids Programs" }
-  ]
+  // Dynamic courses and categories will be loaded from API
 
   // Duration options
   const durations = [
@@ -255,69 +162,139 @@ export default function CreateStudent() {
     { id: "weekend-evening", name: "Weekend Evening" }
   ]
 
-  // Load branches and courses on component mount
+  // Load locations, branches and courses on component mount
   useEffect(() => {
     const loadData = async () => {
-      if (!access_token) return
+      // Using public APIs - no authentication required
 
-      setIsLoading(true)
       try {
-        // Load branches
-        const branchesResponse = await branchAPI.getBranches(access_token)
-        if (branchesResponse && Array.isArray(branchesResponse)) {
-          setBranches(branchesResponse)
-        }
-
-        // Load courses
-        const coursesResponse = await courseAPI.getCourses(access_token)
-        if (coursesResponse && Array.isArray(coursesResponse)) {
-          setCourses(coursesResponse)
-          setFilteredCourses(coursesResponse)
+        // Load locations
+        setIsLoadingLocations(true)
+        const locationsResponse = await fetch('http://localhost:8001/locations/public/details?active_only=true')
+        if (locationsResponse.ok) {
+          const locationsData = await locationsResponse.json()
+          setLocations(locationsData.locations || [])
         }
       } catch (error) {
-        console.error('Error loading data:', error)
+        console.error('Error loading locations:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load locations. Please try again.",
+          variant: "destructive",
+        })
       } finally {
-        setIsLoading(false)
+        setIsLoadingLocations(false)
+      }
+
+      try {
+        // Load branches
+        setIsLoadingBranches(true)
+        const branchesResponse = await fetch('http://localhost:8001/locations/public/with-branches?active_only=true')
+        if (branchesResponse.ok) {
+          const branchesData = await branchesResponse.json()
+
+          // Extract branches from locations
+          const allBranches: any[] = []
+          if (branchesData.locations) {
+            branchesData.locations.forEach((location: any) => {
+              if (location.branches) {
+                allBranches.push(...location.branches)
+              }
+            })
+          }
+          setBranches(allBranches)
+        }
+      } catch (error) {
+        console.error('Error loading branches:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load branches. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingBranches(false)
+      }
+
+      try {
+        // Load courses
+        setIsLoadingCourses(true)
+        const coursesResponse = await fetch('http://localhost:8001/courses/public/all')
+        if (coursesResponse.ok) {
+          const coursesData = await coursesResponse.json()
+          const allCourses = coursesData.courses || []
+          setCourses(allCourses)
+          setFilteredCourses(allCourses)
+        }
+      } catch (error) {
+        console.error('Error loading courses:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load courses. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingCourses(false)
+      }
+
+      try {
+        // Load categories
+        setIsLoadingCategories(true)
+        const categoriesResponse = await fetch('http://localhost:8001/categories/public/details?active_only=true')
+        if (categoriesResponse.ok) {
+          const categoriesData = await categoriesResponse.json()
+          setCategories(categoriesData.categories || [])
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load categories. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingCategories(false)
       }
     }
 
     loadData()
-  }, [access_token])
+  }, []) // Using public APIs - no dependencies needed
 
-  // Use temp data if API data is not available - memoized to prevent infinite loops
-  const activeBranches = useMemo(() => 
-    branches.length > 0 ? branches : tempBranches, 
-    [branches]
-  )
-  
-  const activeCourses = useMemo(() => 
-    courses.length > 0 ? courses : tempCourses, 
-    [courses]
-  )
+  // Use dynamic data loaded from APIs
 
   // Filter courses based on selected category
   useEffect(() => {
     if (formData.category) {
-      const filtered = activeCourses.filter(course => 
-        course.category_id === formData.category || 
+      const filtered = courses.filter(course =>
+        course.category_id === formData.category ||
         course.category_name?.toLowerCase().includes(formData.category.toLowerCase())
       )
       setFilteredCourses(filtered)
     } else {
-      setFilteredCourses(activeCourses)
+      setFilteredCourses(courses)
     }
-  }, [formData.category, activeCourses])
+  }, [formData.category, courses])
 
-  const filteredBranches = useMemo(() => 
-    formData.location 
-      ? activeBranches.filter(branch => 
-          branch.location_id === formData.location ||
-          branch.address?.toLowerCase().includes(formData.location.toLowerCase()) ||
-          branch.name?.toLowerCase().includes(formData.location.toLowerCase())
-        )
-      : activeBranches,
-    [formData.location, activeBranches]
-  )
+  const filteredBranches = useMemo(() => {
+    if (!formData.location) {
+      return branches
+    }
+
+    // Find the selected location
+    const selectedLocation = locations.find(loc => loc.id === formData.location)
+
+    if (!selectedLocation) {
+      return branches
+    }
+
+    // Filter branches by matching city with location name or state
+    const filtered = branches.filter(branch => {
+      const cityMatch = branch.address?.city?.toLowerCase() === selectedLocation.name.toLowerCase()
+      const stateMatch = branch.address?.state?.toLowerCase() === selectedLocation.state?.toLowerCase()
+      return cityMatch || stateMatch
+    })
+
+    return filtered
+  }, [formData.location, branches, locations])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -396,30 +373,23 @@ export default function CreateStudent() {
         gender: formData.gender || undefined,
         biometric_id: formData.biometricId || undefined,
         course: formData.course ? {
-          category_id: formData.category || "martial-arts",
+          category_id: formData.category,
           course_id: formData.course,
           duration: formData.duration || "3-months"
         } : undefined,
         branch: formData.branch ? {
-          location_id: formData.location || "hyderabad",
+          location_id: formData.location,
           branch_id: formData.branch
         } : undefined
       }
 
       console.log("Creating student with data:", apiPayload)
 
-      // Get authentication token
-      const token = TokenManager.getToken()
-      if (!token) {
-        throw new Error("Authentication token not found. Please login again.")
-      }
-
-      // Make API call using Student Management endpoint
+      // Make API call using public registration endpoint (no auth required)
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(apiPayload),
       })
@@ -702,16 +672,26 @@ export default function CreateStudent() {
                         <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
                           <FolderIcon className="w-5 h-5 text-gray-400" />
                         </div>
-                        <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
+                        <Select
+                          value={formData.category}
+                          onValueChange={(value) => handleInputChange("category", value)}
+                          disabled={isLoadingCategories}
+                        >
                           <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
-                            <SelectValue placeholder="Select Category" className="text-gray-500" />
+                            <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select Category"} className="text-gray-500" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
-                                {category.name}
-                              </SelectItem>
-                            ))}
+                            {categories.length > 0 ? (
+                              categories.map((category) => (
+                                <SelectItem key={category.id} value={category.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                                  {category.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-gray-500">
+                                <p className="text-sm">No categories available</p>
+                              </div>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -726,19 +706,34 @@ export default function CreateStudent() {
                         <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
                           <BookOpenIcon className="w-5 h-5 text-gray-400" />
                         </div>
-                        <Select value={formData.course} onValueChange={(value) => handleInputChange("course", value)}>
+                        <Select
+                          value={formData.course}
+                          onValueChange={(value) => handleInputChange("course", value)}
+                          disabled={isLoadingCourses}
+                        >
                           <SelectTrigger className={cn(
                             "!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14",
                             errors.course ? "!border-red-500 !bg-red-50" : ""
                           )}>
-                            <SelectValue placeholder="Choose Course" className="text-gray-500" />
+                            <SelectValue placeholder={isLoadingCourses ? "Loading courses..." : "Choose Course"} className="text-gray-500" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                            {filteredCourses.map((course) => (
-                              <SelectItem key={course.id} value={course.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
-                                {course.title} ({course.difficulty_level})
-                              </SelectItem>
-                            ))}
+                            {filteredCourses.length > 0 ? (
+                              filteredCourses.map((course) => (
+                                <SelectItem key={course.id} value={course.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{course.title}</span>
+                                    <span className="text-xs text-gray-500">
+                                      {course.code} • {course.difficulty_level} • {course.pricing?.currency} {course.pricing?.amount}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-gray-500">
+                                <p className="text-sm">No courses available</p>
+                              </div>
+                            )}
                           </SelectContent>
                         </Select>
                         {errors.course && <p className="text-red-500 text-sm mt-1">{errors.course}</p>}
@@ -783,19 +778,29 @@ export default function CreateStudent() {
                         <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
                           <MapPinIcon className="w-5 h-5 text-gray-400" />
                         </div>
-                        <Select value={formData.location} onValueChange={(value) => handleInputChange("location", value)}>
+                        <Select
+                          value={formData.location}
+                          onValueChange={(value) => handleInputChange("location", value)}
+                          disabled={isLoadingLocations}
+                        >
                           <SelectTrigger className={cn(
                             "!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14",
                             errors.location ? "!border-red-500 !bg-red-50" : ""
                           )}>
-                            <SelectValue placeholder="Select Location" className="text-gray-500" />
+                            <SelectValue placeholder={isLoadingLocations ? "Loading locations..." : "Select Location"} className="text-gray-500" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                            {locations.map((location) => (
-                              <SelectItem key={location.id} value={location.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
-                                {location.name}
-                              </SelectItem>
-                            ))}
+                            {locations.length > 0 ? (
+                              locations.map((location) => (
+                                <SelectItem key={location.id} value={location.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                                  {location.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-gray-500">
+                                <p className="text-sm">No locations available</p>
+                              </div>
+                            )}
                           </SelectContent>
                         </Select>
                         {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location}</p>}
@@ -811,24 +816,41 @@ export default function CreateStudent() {
                         <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
                           <Building2Icon className="w-5 h-5 text-gray-400" />
                         </div>
-                        <Select 
-                          value={formData.branch} 
+                        <Select
+                          value={formData.branch}
                           onValueChange={(value) => handleInputChange("branch", value)}
-                          disabled={!formData.location}
+                          disabled={!formData.location || isLoadingBranches}
                         >
                           <SelectTrigger className={cn(
                             "!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14",
                             errors.branch ? "!border-red-500 !bg-red-50" : "",
-                            !formData.location ? "opacity-50 cursor-not-allowed !bg-gray-200" : ""
+                            (!formData.location || isLoadingBranches) ? "opacity-50 cursor-not-allowed !bg-gray-200" : ""
                           )}>
-                            <SelectValue placeholder="Select Branch" className="text-gray-500" />
+                            <SelectValue placeholder={
+                              isLoadingBranches
+                                ? "Loading branches..."
+                                : !formData.location
+                                  ? "Select location first"
+                                  : "Select Branch"
+                            } className="text-gray-500" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                            {filteredBranches.map((branch) => (
-                              <SelectItem key={branch.id} value={branch.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
-                                {branch.name}
-                              </SelectItem>
-                            ))}
+                            {filteredBranches.length > 0 ? (
+                              filteredBranches.map((branch) => (
+                                <SelectItem key={branch.id} value={branch.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{branch.name}</span>
+                                    <span className="text-xs text-gray-500">
+                                      {branch.address?.city}, {branch.address?.state}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-gray-500">
+                                <p className="text-sm">No branches available</p>
+                              </div>
+                            )}
                           </SelectContent>
                         </Select>
                         {errors.branch && <p className="text-red-500 text-sm mt-1">{errors.branch}</p>}

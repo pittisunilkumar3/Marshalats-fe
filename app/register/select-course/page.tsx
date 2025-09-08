@@ -18,7 +18,13 @@ interface Course {
     currency: string;
     amount: number;
   };
-  duration_options: string[];
+  available_durations: Array<{
+    id: string;
+    name: string;
+    code: string;
+    duration_months: number;
+    pricing_multiplier: number;
+  }>;
   category_id: string;
 }
 
@@ -87,23 +93,31 @@ export default function SelectCoursePage() {
   useEffect(() => {
     const fetchCourses = async () => {
       if (!formData.category_id) return
-      
+
       try {
         setIsLoadingCourses(true)
-        const response = await fetch(`/api/categories/${formData.category_id}/courses?active_only=true`)
-        
+        setError(null) // Clear any previous errors
+
+        const response = await fetch(`http://localhost:8001/courses/public/by-category/${formData.category_id}?active_only=true`)
+
         if (!response.ok) {
-          throw new Error('Failed to fetch courses')
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
-        
+
         const data = await response.json()
-        setCourses(data.courses || [])
+        const coursesData = data.courses || []
+        setCourses(coursesData)
+
+        // Log for debugging
+        console.log(`Fetched ${coursesData.length} courses for category ${formData.category_id}`)
+
       } catch (err) {
         console.error('Error fetching courses:', err)
-        setError('Failed to load courses. Please try again.')
+        setError('Failed to load courses. Please check your connection and try again.')
+        setCourses([]) // Clear courses on error
         toast({
           title: "Error",
-          description: "Failed to load courses. Please try again.",
+          description: "Failed to load courses. Please check your connection and try again.",
           variant: "destructive",
         })
       } finally {
@@ -124,10 +138,7 @@ export default function SelectCoursePage() {
   const selectedCourse = courses.find(course => course.id === formData.course_id)
   
   // Get duration options for selected course
-  const durationOptions = selectedCourse?.duration_options?.map((duration: string) => ({
-    id: duration,
-    name: duration
-  })) || []
+  const durationOptions = selectedCourse?.available_durations || []
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
@@ -261,17 +272,24 @@ export default function SelectCoursePage() {
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {courses.map((course) => (
-                    <SelectItem key={course.id} value={course.id}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{course.title}</span>
-                        <span className="text-xs text-gray-500">{course.code} • {course.difficulty_level}</span>
-                        <span className="text-sm font-semibold mt-1">
-                          {course.pricing.currency} {course.pricing.amount}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {courses.length === 0 && formData.category_id && !isLoadingCourses ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <p>No courses available for this category</p>
+                      <p className="text-xs mt-1">Please select a different category</p>
+                    </div>
+                  ) : (
+                    courses.map((course) => (
+                      <SelectItem key={course.id} value={course.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{course.title}</span>
+                          <span className="text-xs text-gray-500">{course.code} • {course.difficulty_level}</span>
+                          <span className="text-sm font-semibold mt-1">
+                            {course.pricing.currency} {course.pricing.amount}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -296,7 +314,12 @@ export default function SelectCoursePage() {
                 <SelectContent>
                   {durationOptions.map((duration) => (
                     <SelectItem key={duration.id} value={duration.id}>
-                      {duration.name}
+                      <div className="flex flex-col">
+                        <span className="font-medium">{duration.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {duration.duration_months} months • {duration.pricing_multiplier}x pricing
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>

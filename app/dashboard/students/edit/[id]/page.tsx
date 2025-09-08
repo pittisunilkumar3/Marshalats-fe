@@ -60,8 +60,16 @@ export default function EditStudent() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  const [locations, setLocations] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([])
-  
+
+  // API Loading states
+  const [isLoadingLocations, setIsLoadingLocations] = useState(true)
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true)
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true)
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
+
   // Form state
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
@@ -101,25 +109,7 @@ export default function EditStudent() {
     emergencyContactRelation: "",
   })
 
-  // Static data for dropdowns
-  const locations = [
-    { id: "hyderabad", name: "Hyderabad" },
-    { id: "bangalore", name: "Bangalore" },
-    { id: "chennai", name: "Chennai" },
-    { id: "mumbai", name: "Mumbai" },
-    { id: "delhi", name: "Delhi" },
-    { id: "pune", name: "Pune" },
-    { id: "kolkata", name: "Kolkata" },
-    { id: "ahmedabad", name: "Ahmedabad" }
-  ]
-
-  const categories = [
-    { id: "martial-arts", name: "Martial Arts" },
-    { id: "fitness", name: "Fitness" },
-    { id: "self-defense", name: "Self Defense" },
-    { id: "kids-programs", name: "Kids Programs" }
-  ]
-
+  // Dynamic data will be loaded from APIs
   const durations = [
     { id: "1-month", name: "1 Month" },
     { id: "3-months", name: "3 Months" },
@@ -142,23 +132,122 @@ export default function EditStudent() {
         const studentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${studentId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
-        if (!studentResponse.ok) throw new Error("Failed to fetch student data.")
-        const studentData = await studentResponse.json()
+        if (!studentResponse.ok) {
+          if (studentResponse.status === 404) {
+            throw new Error("Student not found")
+          }
+          throw new Error(`Failed to fetch student data: ${studentResponse.status}`)
+        }
+        const studentResponseData = await studentResponse.json()
+        const studentData = studentResponseData.user || studentResponseData
 
-        // Fetch branches and courses
-        const [branchesResponse, coursesResponse] = await Promise.all([
-          branchAPI.getBranches(token),
-          courseAPI.getCourses(token)
+        // Load dynamic data from APIs
+        await Promise.all([
+          // Load locations
+          (async () => {
+            try {
+              setIsLoadingLocations(true)
+              const locationsResponse = await fetch('http://localhost:8001/locations/public/details?active_only=true')
+              if (locationsResponse.ok) {
+                const locationsData = await locationsResponse.json()
+                setLocations(locationsData.locations || [])
+              }
+            } catch (error) {
+              console.error('Error loading locations:', error)
+            } finally {
+              setIsLoadingLocations(false)
+            }
+          })(),
+
+          // Load branches
+          (async () => {
+            try {
+              setIsLoadingBranches(true)
+              const branchesResponse = await fetch('http://localhost:8001/locations/public/with-branches?active_only=true')
+              if (branchesResponse.ok) {
+                const branchesData = await branchesResponse.json()
+
+                // Extract branches from locations
+                const allBranches: any[] = []
+                if (branchesData.locations) {
+                  branchesData.locations.forEach((location: any) => {
+                    if (location.branches) {
+                      allBranches.push(...location.branches)
+                    }
+                  })
+                }
+                setBranches(allBranches)
+              }
+            } catch (error) {
+              console.error('Error loading branches:', error)
+            } finally {
+              setIsLoadingBranches(false)
+            }
+          })(),
+
+          // Load courses
+          (async () => {
+            try {
+              setIsLoadingCourses(true)
+              const coursesResponse = await fetch('http://localhost:8001/courses/public/all')
+              if (coursesResponse.ok) {
+                const coursesData = await coursesResponse.json()
+                const allCourses = coursesData.courses || []
+                setCourses(allCourses)
+                setFilteredCourses(allCourses)
+              }
+            } catch (error) {
+              console.error('Error loading courses:', error)
+            } finally {
+              setIsLoadingCourses(false)
+            }
+          })(),
+
+          // Load categories
+          (async () => {
+            try {
+              setIsLoadingCategories(true)
+              const categoriesResponse = await fetch('http://localhost:8001/categories/public/details?active_only=true')
+              if (categoriesResponse.ok) {
+                const categoriesData = await categoriesResponse.json()
+                setCategories(categoriesData.categories || [])
+              }
+            } catch (error) {
+              console.error('Error loading categories:', error)
+            } finally {
+              setIsLoadingCategories(false)
+            }
+          })()
         ])
-        
-        if (branchesResponse && Array.isArray(branchesResponse)) setBranches(branchesResponse)
-        if (coursesResponse && Array.isArray(coursesResponse)) {
-          setCourses(coursesResponse)
-          setFilteredCourses(coursesResponse)
+
+        // Helper function to find matching option by name/code
+        const findOptionByIdentifier = (options: any[], identifier: string, searchFields: string[] = ['name', 'code', 'title']) => {
+          if (!identifier || !options.length) return ""
+
+          // First try exact ID match
+          const exactMatch = options.find(option => option.id === identifier)
+          if (exactMatch) return exactMatch.id
+
+          // Then try matching by name, code, or title (case-insensitive)
+          const fieldMatch = options.find(option =>
+            searchFields.some(field =>
+              option[field]?.toLowerCase() === identifier.toLowerCase()
+            )
+          )
+          if (fieldMatch) return fieldMatch.id
+
+          // Finally try partial matching
+          const partialMatch = options.find(option =>
+            searchFields.some(field =>
+              option[field]?.toLowerCase().includes(identifier.toLowerCase()) ||
+              identifier.toLowerCase().includes(option[field]?.toLowerCase())
+            )
+          )
+          return partialMatch ? partialMatch.id : ""
         }
 
-        // Populate form with student data
-        setFormData({
+        // Map student data to form data with proper ID resolution
+        const mappedFormData = {
           firstName: studentData.first_name || "",
           lastName: studentData.last_name || "",
           email: studentData.email || "",
@@ -174,15 +263,17 @@ export default function EditStudent() {
           state: studentData.address?.state || "",
           zipCode: studentData.address?.pincode || "",
           country: studentData.address?.country || "India",
-          location: studentData.branch?.location_id || "",
-          branch: studentData.branch?.branch_id || "",
-          category: studentData.course?.category_id || "",
-          course: studentData.course?.course_id || "",
+          location: findOptionByIdentifier(locations, studentData.branch?.location_id || ""),
+          branch: findOptionByIdentifier(branches, studentData.branch?.branch_id || ""),
+          category: findOptionByIdentifier(categories, studentData.course?.category_id || ""),
+          course: findOptionByIdentifier(courses, studentData.course?.course_id || "", ['title', 'code', 'name']),
           duration: studentData.course?.duration || "",
           emergencyContactName: studentData.emergency_contact?.name || "",
           emergencyContactPhone: studentData.emergency_contact?.phone || "",
           emergencyContactRelation: studentData.emergency_contact?.relationship || "",
-        })
+        }
+
+        setFormData(mappedFormData)
         
         if (studentData.date_of_birth) {
           setSelectedDate(new Date(studentData.date_of_birth))
@@ -212,16 +303,20 @@ export default function EditStudent() {
     }
   }, [formData.category, courses])
 
-  const filteredBranches = useMemo(() => 
-    formData.location 
-      ? branches.filter(branch => 
-          branch.location_id === formData.location ||
-          branch.address?.toLowerCase().includes(formData.location.toLowerCase()) ||
-          branch.name?.toLowerCase().includes(formData.location.toLowerCase())
-        )
-      : branches,
-    [formData.location, branches]
-  )
+  const filteredBranches = useMemo(() => {
+    if (!formData.location) return branches
+
+    // Find the selected location
+    const selectedLocation = locations.find(loc => loc.id === formData.location)
+    if (!selectedLocation) return branches
+
+    // Filter branches by matching city with location name
+    return branches.filter(branch =>
+      branch.address?.city?.toLowerCase().includes(selectedLocation.name.toLowerCase()) ||
+      branch.address?.state?.toLowerCase().includes(selectedLocation.name.toLowerCase()) ||
+      branch.name?.toLowerCase().includes(selectedLocation.name.toLowerCase())
+    )
+  }, [formData.location, branches, locations])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -550,15 +645,32 @@ export default function EditStudent() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <Label className="block text-sm font-medium text-gray-700 mb-2">Location <span className="text-red-500">*</span></Label>
-                      <Select value={formData.location} onValueChange={(value) => handleInputChange("location", value)}>
-                        <SelectTrigger className={cn("!w-full !h-14 !pl-12 !text-base !bg-gray-50 !border-gray-200 !rounded-xl", errors.location && "!border-red-500 !bg-red-50")}>
+                      <Select
+                        value={formData.location}
+                        onValueChange={(value) => handleInputChange("location", value)}
+                        disabled={isLoadingLocations}
+                      >
+                        <SelectTrigger className={cn(
+                          "!w-full !h-14 !pl-12 !text-base !bg-gray-50 !border-gray-200 !rounded-xl",
+                          errors.location && "!border-red-500 !bg-red-50"
+                        )}>
                           <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
                             <MapPinIcon className="w-5 h-5 text-gray-400" />
                           </div>
-                          <SelectValue placeholder="Select Location" />
+                          <SelectValue placeholder={isLoadingLocations ? "Loading locations..." : "Select Location"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {locations.map((loc) => <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>)}
+                          {locations.length > 0 ? (
+                            locations.map((location) => (
+                              <SelectItem key={location.id} value={location.id}>
+                                {location.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-4 text-center text-gray-500">
+                              <p className="text-sm">No locations available</p>
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
                       {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location}</p>}
@@ -566,15 +678,46 @@ export default function EditStudent() {
 
                     <div>
                       <Label className="block text-sm font-medium text-gray-700 mb-2">Branch <span className="text-red-500">*</span></Label>
-                      <Select value={formData.branch} onValueChange={(value) => handleInputChange("branch", value)} disabled={!formData.location}>
-                        <SelectTrigger className={cn("!w-full !h-14 !pl-12 !text-base !bg-gray-50 !border-gray-200 !rounded-xl", errors.branch && "!border-red-500 !bg-red-50", !formData.location && "opacity-50 cursor-not-allowed")}>
+                      <Select
+                        value={formData.branch}
+                        onValueChange={(value) => handleInputChange("branch", value)}
+                        disabled={!formData.location || isLoadingBranches}
+                      >
+                        <SelectTrigger className={cn(
+                          "!w-full !h-14 !pl-12 !text-base !bg-gray-50 !border-gray-200 !rounded-xl",
+                          errors.branch && "!border-red-500 !bg-red-50",
+                          (!formData.location || isLoadingBranches) && "opacity-50 cursor-not-allowed"
+                        )}>
                           <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
                             <Building2Icon className="w-5 h-5 text-gray-400" />
                           </div>
-                          <SelectValue placeholder="Select Branch" />
+                          <SelectValue placeholder={
+                            isLoadingBranches
+                              ? "Loading branches..."
+                              : !formData.location
+                                ? "Select location first"
+                                : "Select Branch"
+                          } />
                         </SelectTrigger>
                         <SelectContent>
-                          {filteredBranches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                          {filteredBranches.length > 0 ? (
+                            filteredBranches.map((branch) => (
+                              <SelectItem key={branch.id} value={branch.id}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{branch.name}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {branch.address?.city}, {branch.address?.state}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-4 text-center text-gray-500">
+                              <p className="text-sm">
+                                {formData.location ? "No branches available in selected location" : "Select a location first"}
+                              </p>
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
                       {errors.branch && <p className="text-red-500 text-sm mt-1">{errors.branch}</p>}

@@ -46,7 +46,7 @@ export interface APIError {
 
 class CourseAPI extends BaseAPI {
   async createCourse(data: CourseCreateData, token: string): Promise<CourseCreateResponse> {
-    return await this.makeRequest('/api/courses', {
+    return await this.makeRequest('/courses', {
       method: 'POST',
       body: data,
       token
@@ -54,7 +54,7 @@ class CourseAPI extends BaseAPI {
   }
 
   async getCourses(token: string): Promise<any> {
-    return await this.makeRequest('/api/courses', {
+    return await this.makeRequest('/courses', {
       method: 'GET',
       token
     })
@@ -69,7 +69,7 @@ class CourseAPI extends BaseAPI {
 
   // Method to get course by ID
   async getCourseById(courseId: string, token: string): Promise<any> {
-    return await this.makeRequest(`/api/courses/${courseId}`, {
+    return await this.makeRequest(`/courses/${courseId}`, {
       method: 'GET',
       token
     })
@@ -77,7 +77,7 @@ class CourseAPI extends BaseAPI {
 
   // Method to update course
   async updateCourse(courseId: string, data: Partial<CourseCreateData>, token: string): Promise<any> {
-    return await this.makeRequest(`/api/courses/${courseId}`, {
+    return await this.makeRequest(`/courses/${courseId}`, {
       method: 'PUT',
       body: data,
       token
@@ -86,7 +86,7 @@ class CourseAPI extends BaseAPI {
 
   // Method to delete course
   async deleteCourse(courseId: string, token: string): Promise<any> {
-    return await this.makeRequest(`/api/courses/${courseId}`, {
+    return await this.makeRequest(`/courses/${courseId}`, {
       method: 'DELETE',
       token
     })
