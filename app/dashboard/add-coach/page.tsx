@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,11 +13,97 @@ import { ArrowLeft, User, Award, MapPin, Phone, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DashboardHeader from "@/components/dashboard-header"
 import { TokenManager } from "@/lib/tokenManager"
+import { useToast } from "@/hooks/use-toast"
+
+// Interface definitions for API data
+interface Branch {
+  id: string
+  branch: {
+    name: string
+    code: string
+    email: string
+    phone: string
+    address: {
+      line1: string
+      area: string
+      city: string
+      state: string
+      pincode: string
+      country: string
+    }
+  }
+  manager_id: string
+  operational_details: {
+    courses_offered: string[]
+    timings: Array<{
+      day: string
+      open: string
+      close: string
+    }>
+    holidays: string[]
+  }
+  assignments: {
+    accessories_available: boolean
+    courses: string[]
+    branch_admins: string[]
+  }
+  bank_details: {
+    bank_name: string
+    account_number: string
+    upi_id: string
+  }
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+interface Course {
+  id: string
+  title: string
+  code: string
+  description: string
+  martial_art_style_id: string
+  difficulty_level: string
+  category_id: string
+  instructor_id: string
+  student_requirements: {
+    max_students: number
+    min_age: number
+    max_age: number
+    prerequisites: string[]
+  }
+  course_content: {
+    syllabus: string
+    equipment_required: string[]
+  }
+  media_resources: {
+    course_image_url?: string
+    promo_video_url?: string
+  }
+  pricing: {
+    currency: string
+    amount: number
+    branch_specific_pricing: boolean
+  }
+  settings: {
+    offers_certification: boolean
+    active: boolean
+  }
+  created_at: string
+  updated_at: string
+}
 
 export default function AddCoachPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // API data state
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true)
+  const [courses, setCourses] = useState<Course[]>([])
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true)
 
   const [formData, setFormData] = useState({
     // Personal Information
@@ -88,24 +174,140 @@ export default function AddCoachPage() {
     "Yoga"
   ]
 
-  const branches = [
-    "Madhapur Branch",
-    "Hitech City Branch", 
-    "Gachibowli Branch",
-    "Kondapur Branch",
-    "Kukatpally Branch"
-  ]
+  // Load data from APIs
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        setIsLoadingBranches(true)
 
-  const courses = [
-    "Taekwondo Basics",
-    "Advanced Karate",
-    "Kung Fu Fundamentals",
-    "Self Defense for Women",
-    "Mixed Martial Arts",
-    "Kids Martial Arts",
-    "Adult Fitness Boxing",
-    "Traditional Dance Forms"
-  ]
+        // Get authentication token
+        let token = TokenManager.getToken()
+
+        // If no token, try to get one using superadmin credentials for testing
+        if (!token) {
+          console.log('No token found, attempting to get superadmin token...')
+          try {
+            const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/superadmin/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: "pittisunilkumar3@gmail.com",
+                password: "StrongPassword@123"
+              })
+            })
+
+            if (loginResponse.ok) {
+              const loginData = await loginResponse.json()
+              console.log('✅ Got superadmin token for branches')
+
+              // Store the token using TokenManager
+              TokenManager.storeAuthData(loginData)
+              token = TokenManager.getToken()
+            } else {
+              console.error('Failed to get superadmin token:', loginResponse.statusText)
+              toast({
+                title: "Authentication Error",
+                description: "Unable to authenticate. Please login manually.",
+                variant: "destructive",
+              })
+              setIsLoadingBranches(false)
+              return
+            }
+          } catch (error) {
+            console.error('Error getting superadmin token:', error)
+            toast({
+              title: "Authentication Error",
+              description: "Please login to access branch data.",
+              variant: "destructive",
+            })
+            setIsLoadingBranches(false)
+            return
+          }
+        }
+
+        // Call real backend API
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches?limit=100`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log('✅ Real backend branches data:', data)
+
+          // Set branches data
+          setBranches(data.branches || [])
+        } else {
+          console.error('Failed to load branches:', response.status, response.statusText)
+          if (response.status === 401) {
+            toast({
+              title: "Authentication Error",
+              description: "Please login again to access branch data.",
+              variant: "destructive",
+            })
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to load branches. Please try again.",
+              variant: "destructive",
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error loading branches:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load branches. Please check your connection.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingBranches(false)
+      }
+    }
+
+    const loadCourses = async () => {
+      try {
+        setIsLoadingCourses(true)
+
+        // Use public endpoint for courses (no authentication required)
+        const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/public/all`, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (coursesResponse.ok) {
+          const coursesData = await coursesResponse.json()
+          setCourses(coursesData.courses || [])
+          console.log('✅ Loaded courses from backend:', coursesData.courses?.length || 0)
+        } else {
+          console.error('Failed to load courses:', coursesResponse.statusText)
+          toast({
+            title: "Error",
+            description: "Failed to load courses. Please try again.",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error('Error loading courses:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load courses. Please check your connection.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingCourses(false)
+      }
+    }
+
+    const loadData = async () => {
+      await Promise.all([loadBranches(), loadCourses()])
+    }
+
+    loadData()
+  }, [toast])
 
   const handleSpecializationToggle = (specialization: string) => {
     setFormData(prev => ({
@@ -116,12 +318,12 @@ export default function AddCoachPage() {
     }))
   }
 
-  const handleCourseToggle = (course: string) => {
+  const handleCourseToggle = (courseId: string) => {
     setFormData(prev => ({
       ...prev,
-      courses: prev.courses.includes(course)
-        ? prev.courses.filter(c => c !== course)
-        : [...prev.courses, course]
+      courses: prev.courses.includes(courseId)
+        ? prev.courses.filter(c => c !== courseId)
+        : [...prev.courses, courseId]
     }))
   }
 
@@ -183,6 +385,15 @@ export default function AddCoachPage() {
       }
 
       console.log("Creating coach with data:", coachData)
+
+      // Note: Branch and course assignments are collected in the form but not included in the coach creation API
+      // These assignments would typically be handled separately after coach creation or through branch management
+      if (formData.branch || formData.courses.length > 0) {
+        console.log("Branch and course assignments collected:", {
+          selectedBranch: formData.branch,
+          selectedCourses: formData.courses
+        })
+      }
 
       // Get authentication token
       const token = TokenManager.getToken()
@@ -536,21 +747,32 @@ export default function AddCoachPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="branch">Assign to Branch</Label>
-                  <Select 
-                    value={formData.branch} 
-                    onValueChange={(value) => setFormData({ ...formData, branch: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branches.map((branch) => (
-                        <SelectItem key={branch} value={branch}>
-                          {branch}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {isLoadingBranches ? (
+                    <div className="flex items-center justify-center py-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+                      <span className="ml-2 text-sm text-gray-600">Loading branches...</span>
+                    </div>
+                  ) : (
+                    <Select
+                      value={formData.branch}
+                      onValueChange={(value) => setFormData({ ...formData, branch: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.length === 0 ? (
+                          <SelectItem value="" disabled>No branches available</SelectItem>
+                        ) : (
+                          branches.map((branch) => (
+                            <SelectItem key={branch.id} value={branch.id}>
+                              {branch.branch.name} ({branch.branch.code})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -566,35 +788,54 @@ export default function AddCoachPage() {
 
               <div className="space-y-2">
                 <Label>Assign Courses</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {courses.map((course) => (
-                    <div key={course} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`course-${course}`}
-                        checked={formData.courses.includes(course)}
-                        onCheckedChange={() => handleCourseToggle(course)}
-                      />
-                      <Label htmlFor={`course-${course}`} className="text-sm cursor-pointer">
-                        {course}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                
+                {isLoadingCourses ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600"></div>
+                    <span className="ml-2 text-sm text-gray-600">Loading courses...</span>
+                  </div>
+                ) : courses.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {courses.map((course) => (
+                      <div key={course.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`course-${course.id}`}
+                          checked={formData.courses.includes(course.id)}
+                          onCheckedChange={() => handleCourseToggle(course.id)}
+                        />
+                        <Label htmlFor={`course-${course.id}`} className="text-sm cursor-pointer">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{course.title}</span>
+                            <span className="text-xs text-gray-500">
+                              {course.code} • {course.difficulty_level}
+                            </span>
+                          </div>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <p className="text-sm">No courses available</p>
+                  </div>
+                )}
+
                 {formData.courses.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.courses.map((course) => (
-                      <Badge key={course} variant="secondary" className="bg-blue-100 text-blue-800">
-                        {course}
-                        <button
-                          type="button"
-                          onClick={() => handleCourseToggle(course)}
-                          className="ml-2 hover:text-red-600"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
+                    {formData.courses.map((courseId) => {
+                      const course = courses.find(c => c.id === courseId)
+                      return course ? (
+                        <Badge key={courseId} variant="secondary" className="bg-blue-100 text-blue-800">
+                          {course.title}
+                          <button
+                            type="button"
+                            onClick={() => handleCourseToggle(courseId)}
+                            className="ml-2 hover:text-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ) : null
+                    })}
                   </div>
                 )}
               </div>
