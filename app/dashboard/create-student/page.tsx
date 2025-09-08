@@ -46,6 +46,17 @@ interface Course {
   }
 }
 
+interface Coach {
+  id: string
+  first_name: string
+  last_name: string
+  full_name: string
+  email: string
+  phone: string
+  areas_of_expertise: string[]
+  is_active: boolean
+}
+
 interface FormErrors {
   [key: string]: string
 }
@@ -61,13 +72,16 @@ export default function CreateStudent() {
   const [courses, setCourses] = useState<Course[]>([])
   const [locations, setLocations] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
+  const [coaches, setCoaches] = useState<Coach[]>([])
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([])
+  const [filteredCoaches, setFilteredCoaches] = useState<Coach[]>([])
 
   // API Loading states
   const [isLoadingLocations, setIsLoadingLocations] = useState(true)
   const [isLoadingBranches, setIsLoadingBranches] = useState(true)
   const [isLoadingCourses, setIsLoadingCourses] = useState(true)
   const [isLoadingCategories, setIsLoadingCategories] = useState(true)
+  const [isLoadingCoaches, setIsLoadingCoaches] = useState(true)
 
   // Form state
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
@@ -101,6 +115,7 @@ export default function CreateStudent() {
     category: "",
     course: "",
     duration: "",
+    assignedCoach: "",
     experienceLevel: "",
     healthNotes: "",
     beltRank: "",
@@ -170,7 +185,7 @@ export default function CreateStudent() {
       try {
         // Load locations
         setIsLoadingLocations(true)
-        const locationsResponse = await fetch('http://82.29.165.77:8003/locations/public/details?active_only=true')
+        const locationsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/locations/public/details?active_only=true`)
         if (locationsResponse.ok) {
           const locationsData = await locationsResponse.json()
           setLocations(locationsData.locations || [])
@@ -189,7 +204,7 @@ export default function CreateStudent() {
       try {
         // Load branches
         setIsLoadingBranches(true)
-        const branchesResponse = await fetch('http://82.29.165.77:8003/locations/public/with-branches?active_only=true')
+        const branchesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/locations/public/with-branches?active_only=true`)
         if (branchesResponse.ok) {
           const branchesData = await branchesResponse.json()
 
@@ -218,7 +233,7 @@ export default function CreateStudent() {
       try {
         // Load courses
         setIsLoadingCourses(true)
-        const coursesResponse = await fetch('http://82.29.165.77:8003/courses/public/all')
+        const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/public/all`)
         if (coursesResponse.ok) {
           const coursesData = await coursesResponse.json()
           const allCourses = coursesData.courses || []
@@ -239,7 +254,7 @@ export default function CreateStudent() {
       try {
         // Load categories
         setIsLoadingCategories(true)
-        const categoriesResponse = await fetch('http://82.29.165.77:8003/categories/public/details?active_only=true')
+        const categoriesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/categories/public/details?active_only=true`)
         if (categoriesResponse.ok) {
           const categoriesData = await categoriesResponse.json()
           setCategories(categoriesData.categories || [])
@@ -253,6 +268,67 @@ export default function CreateStudent() {
         })
       } finally {
         setIsLoadingCategories(false)
+      }
+
+      try {
+        // Load coaches - Note: This endpoint may require authentication in the future
+        setIsLoadingCoaches(true)
+
+        // For now, we'll use mock data since the coaches endpoint requires authentication
+        // In the future, you can implement a public coaches endpoint or use authentication
+        const mockCoaches = [
+          {
+            id: "coach-1",
+            first_name: "John",
+            last_name: "Smith",
+            full_name: "John Smith",
+            email: "john.smith@example.com",
+            phone: "+1234567890",
+            areas_of_expertise: ["Karate", "Self Defense"],
+            is_active: true
+          },
+          {
+            id: "coach-2",
+            first_name: "Sarah",
+            last_name: "Johnson",
+            full_name: "Sarah Johnson",
+            email: "sarah.johnson@example.com",
+            phone: "+1234567891",
+            areas_of_expertise: ["Taekwondo", "Competition Training"],
+            is_active: true
+          },
+          {
+            id: "coach-3",
+            first_name: "Mike",
+            last_name: "Chen",
+            full_name: "Mike Chen",
+            email: "mike.chen@example.com",
+            phone: "+1234567892",
+            areas_of_expertise: ["Martial Arts", "Kickboxing"],
+            is_active: true
+          }
+        ]
+
+        setCoaches(mockCoaches)
+        setFilteredCoaches(mockCoaches)
+
+        // Uncomment this when you have a public coaches endpoint:
+        // const coachesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches/public/all?active_only=true`)
+        // if (coachesResponse.ok) {
+        //   const coachesData = await coachesResponse.json()
+        //   setCoaches(coachesData.coaches || [])
+        //   setFilteredCoaches(coachesData.coaches || [])
+        // }
+      } catch (error) {
+        console.error('Error loading coaches:', error)
+        // Don't show error toast for coaches since it's not critical for student creation
+        // toast({
+        //   title: "Error",
+        //   description: "Failed to load coaches. Please try again.",
+        //   variant: "destructive",
+        // })
+      } finally {
+        setIsLoadingCoaches(false)
       }
     }
 
@@ -273,6 +349,28 @@ export default function CreateStudent() {
       setFilteredCourses(courses)
     }
   }, [formData.category, courses])
+
+  // Filter coaches based on selected course/category
+  useEffect(() => {
+    if (coaches.length > 0) {
+      let filtered = coaches
+
+      // If a category is selected, filter coaches by expertise
+      if (formData.category) {
+        const selectedCategory = categories.find(cat => cat.id === formData.category)
+        if (selectedCategory) {
+          filtered = coaches.filter(coach =>
+            coach.areas_of_expertise.some(expertise =>
+              expertise.toLowerCase().includes(selectedCategory.name.toLowerCase()) ||
+              selectedCategory.name.toLowerCase().includes(expertise.toLowerCase())
+            )
+          )
+        }
+      }
+
+      setFilteredCoaches(filtered)
+    }
+  }, [formData.category, coaches, categories])
 
   const filteredBranches = useMemo(() => {
     if (!formData.location) {
@@ -760,6 +858,127 @@ export default function CreateStudent() {
                           </SelectContent>
                         </Select>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Course & Staff Assignments Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Course & Staff Assignments</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    {/* Selected Course Display */}
+                    <div>
+                      <Label className="block text-sm font-medium text-gray-700 mb-2">Selected Course</Label>
+                      <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                        {formData.course ? (
+                          (() => {
+                            const selectedCourse = filteredCourses.find(course => course.id === formData.course)
+                            return selectedCourse ? (
+                              <div className="flex flex-col space-y-2">
+                                <div className="flex items-center space-x-2">
+                                  <BookOpenIcon className="w-5 h-5 text-blue-500" />
+                                  <span className="font-medium text-gray-900">{selectedCourse.title}</span>
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  <p><span className="font-medium">Code:</span> {selectedCourse.code}</p>
+                                  <p><span className="font-medium">Level:</span> {selectedCourse.difficulty_level}</p>
+                                  <p><span className="font-medium">Duration:</span> {formData.duration || 'Not selected'}</p>
+                                  <p><span className="font-medium">Price:</span> {selectedCourse.pricing?.currency} {selectedCourse.pricing?.amount}</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-center text-gray-500">
+                                <BookOpenIcon className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                                <p className="text-sm">Course details not found</p>
+                              </div>
+                            )
+                          })()
+                        ) : (
+                          <div className="text-center text-gray-500">
+                            <BookOpenIcon className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm">No course selected</p>
+                            <p className="text-xs">Please select a course from the Course Information section</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Assign Coach */}
+                    <div>
+                      <Label className="block text-sm font-medium text-gray-700 mb-2">
+                        Assign Coach/Instructor
+                      </Label>
+                      <div className="relative">
+                        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
+                          <UserIcon className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <Select
+                          value={formData.assignedCoach}
+                          onValueChange={(value) => handleInputChange("assignedCoach", value)}
+                          disabled={isLoadingCoaches || !formData.course}
+                        >
+                          <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
+                            <SelectValue
+                              placeholder={
+                                isLoadingCoaches ? "Loading coaches..." :
+                                !formData.course ? "Select a course first" :
+                                filteredCoaches.length === 0 ? "No coaches available" :
+                                "Select Coach/Instructor"
+                              }
+                              className="text-gray-500"
+                            />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
+                            {filteredCoaches.length > 0 ? (
+                              filteredCoaches.map((coach) => (
+                                <SelectItem key={coach.id} value={coach.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{coach.full_name || `${coach.first_name} ${coach.last_name}`}</span>
+                                    <span className="text-xs text-gray-500">
+                                      {coach.areas_of_expertise.slice(0, 2).join(', ')}
+                                      {coach.areas_of_expertise.length > 2 && ` +${coach.areas_of_expertise.length - 2} more`}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-gray-500">
+                                <p className="text-sm">
+                                  {!formData.course ? "Please select a course first" : "No coaches available for this course"}
+                                </p>
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {formData.assignedCoach && (
+                        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          {(() => {
+                            const selectedCoach = filteredCoaches.find(coach => coach.id === formData.assignedCoach)
+                            return selectedCoach ? (
+                              <div className="flex items-start space-x-3">
+                                <div className="flex-shrink-0">
+                                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <UserIcon className="w-4 h-4 text-white" />
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-blue-900">
+                                    {selectedCoach.full_name || `${selectedCoach.first_name} ${selectedCoach.last_name}`}
+                                  </p>
+                                  <p className="text-xs text-blue-700">{selectedCoach.email}</p>
+                                  <div className="mt-1">
+                                    <p className="text-xs text-blue-600">
+                                      <span className="font-medium">Expertise:</span> {selectedCoach.areas_of_expertise.join(', ')}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : null
+                          })()}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

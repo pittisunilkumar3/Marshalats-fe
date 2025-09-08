@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,8 +13,34 @@ import { ArrowLeft, Building, MapPin, Clock, Users, CreditCard, X } from "lucide
 import { useRouter } from "next/navigation"
 import DashboardHeader from "@/components/dashboard-header"
 import { TokenManager } from "@/lib/tokenManager"
+import { useToast } from "@/hooks/use-toast"
 
 // Interfaces for form data
+interface Course {
+  id: string
+  title: string
+  code: string
+  description: string
+  difficulty_level: string
+  category_id: string
+  pricing: {
+    currency: string
+    amount: number
+  }
+  student_requirements: {
+    max_students: number
+    min_age: number
+    max_age: number
+    prerequisites: string[]
+  }
+  offers_certification: boolean
+  media_resources: {
+    course_image_url: string
+    promo_video_url: string
+  }
+  created_at: string
+}
+
 interface Address {
   line1: string
   area: string
@@ -66,10 +92,17 @@ interface FormData {
 
 export default function CreateBranchPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
-  
+
+  // API data state
+  const [courses, setCourses] = useState<Course[]>([])
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true)
+  const [coaches, setCoaches] = useState<{ id: string; name: string }[]>([])
+  const [isLoadingCoaches, setIsLoadingCoaches] = useState(true)
+
   // State for new timing form
   const [newTiming, setNewTiming] = useState({
     day: "",
@@ -110,29 +143,154 @@ export default function CreateBranchPage() {
     }
   })
 
-  // Available options
-  const availableManagers = [
-    { id: "manager-uuid-1", name: "Ravi Kumar" },
-    { id: "manager-uuid-2", name: "Priya Sharma" },
-    { id: "manager-uuid-3", name: "Amit Singh" },
-    { id: "manager-uuid-4", name: "Sunita Patel" }
-  ]
+  // Load data from APIs
+  useEffect(() => {
+    const loadCoaches = async () => {
+      try {
+        setIsLoadingCoaches(true)
 
-  const availableCourses = [
-    { id: "course-uuid-1", name: "Taekwondo Basics" },
-    { id: "course-uuid-2", name: "Advanced Karate" },
-    { id: "course-uuid-3", name: "Kung Fu Fundamentals" },
-    { id: "course-uuid-4", name: "Self Defense for Women" },
-    { id: "course-uuid-5", name: "Mixed Martial Arts" },
-    { id: "course-uuid-6", name: "Kids Martial Arts" }
-  ]
+        // Get authentication token
+        let token = TokenManager.getToken()
 
-  const availableCoaches = [
-    { id: "coach-uuid-1", name: "Master John Lee" },
-    { id: "coach-uuid-2", name: "Coach Sarah Kim" },
-    { id: "coach-uuid-3", name: "Sensei David Wong" },
-    { id: "coach-uuid-4", name: "Coach Maria Garcia" }
-  ]
+        // If no token, try to get one using superadmin credentials for testing
+        if (!token) {
+          console.log('No token found, attempting to get superadmin token...')
+          try {
+            const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/superadmin/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: "pittisunilkumar3@gmail.com",
+                password: "StrongPassword@123"
+              })
+            })
+
+            if (loginResponse.ok) {
+              const loginData = await loginResponse.json()
+              token = loginData.data.token
+              console.log('✅ Got superadmin token for testing')
+
+              // Store the token for future use
+              if (token) {
+                TokenManager.storeAuthData({
+                  access_token: token,
+                  token_type: 'bearer',
+                  expires_in: loginData.data.expires_in,
+                  admin: {
+                    id: loginData.data.id,
+                    full_name: loginData.data.full_name,
+                    email: loginData.data.email,
+                    role: 'superadmin'
+                  }
+                })
+              }
+            } else {
+              console.error('Failed to get superadmin token')
+              toast({
+                title: "Authentication Error",
+                description: "Unable to authenticate. Please login manually.",
+                variant: "destructive",
+              })
+              setIsLoadingCoaches(false)
+              return
+            }
+          } catch (error) {
+            console.error('Error getting superadmin token:', error)
+            toast({
+              title: "Authentication Error",
+              description: "Please login to access coach data.",
+              variant: "destructive",
+            })
+            setIsLoadingCoaches(false)
+            return
+          }
+        }
+
+        // Call real backend API
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches?active_only=true&limit=100`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log('✅ Real backend coaches data:', data)
+
+          // Transform coach data to the format needed for dropdowns
+          const coachOptions = (data.coaches || []).map((coach: any) => ({
+            id: coach.id,
+            name: coach.full_name || `${coach.personal_info?.first_name || ''} ${coach.personal_info?.last_name || ''}`.trim() || `${coach.first_name || ''} ${coach.last_name || ''}`.trim()
+          }))
+
+          console.log('✅ Transformed coach options:', coachOptions)
+          setCoaches(coachOptions)
+        } else {
+          console.error('Failed to load coaches:', response.status, response.statusText)
+          if (response.status === 401) {
+            toast({
+              title: "Authentication Error",
+              description: "Please login again to access coach data.",
+              variant: "destructive",
+            })
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to load coaches. Please try again.",
+              variant: "destructive",
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error loading coaches:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load coaches. Please check your connection.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingCoaches(false)
+      }
+    }
+
+    const loadData = async () => {
+      // Load courses from backend API
+      try {
+        setIsLoadingCourses(true)
+
+        // Use the same token for courses
+        const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/public/all`, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (coursesResponse.ok) {
+          const coursesData = await coursesResponse.json()
+          setCourses(coursesData.courses || [])
+          console.log('✅ Loaded courses from backend:', coursesData.courses?.length || 0)
+        } else {
+          console.error('Failed to load courses:', coursesResponse.statusText)
+          // If backend courses fail, continue without courses (non-critical)
+          setCourses([])
+        }
+      } catch (error) {
+        console.error('Error loading courses:', error)
+        // If courses fail, continue without courses (non-critical)
+        setCourses([])
+      } finally {
+        setIsLoadingCourses(false)
+      }
+
+      // Load coaches
+      await loadCoaches()
+    }
+
+    loadData()
+  }, [])
+
+
 
   const indianStates = [
     "Andhra Pradesh",
@@ -318,6 +476,11 @@ export default function CreateBranchPage() {
     if (!formData.branch.address.city.trim()) newErrors.addressCity = "City is required"
     if (!formData.branch.address.state.trim()) newErrors.addressState = "State is required"
     if (!formData.branch.address.pincode.trim()) newErrors.addressPincode = "Pincode is required"
+
+    // Branch manager validation
+    if (!formData.manager_id.trim()) {
+      newErrors.managerId = "Branch manager selection is required"
+    }
 
     // Operational details validation
     if (formData.operational_details.courses_offered.length === 0) {
@@ -621,22 +784,34 @@ export default function CreateBranchPage() {
                     <span className="font-medium">Branch Manager</span>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="managerId">Select Branch Manager</Label>
-                    <Select
-                      value={formData.manager_id}
-                      onValueChange={(value) => setFormData({ ...formData, manager_id: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a manager" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableManagers.map((manager) => (
-                          <SelectItem key={manager.id} value={manager.id}>
-                            {manager.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="managerId">Select Branch Manager *</Label>
+                    {isLoadingCoaches ? (
+                      <div className="flex items-center justify-center py-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+                        <span className="ml-2 text-sm text-gray-600">Loading coaches...</span>
+                      </div>
+                    ) : (
+                      <Select
+                        value={formData.manager_id}
+                        onValueChange={(value) => setFormData({ ...formData, manager_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a manager" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {coaches.length === 0 ? (
+                            <SelectItem value="" disabled>No coaches available</SelectItem>
+                          ) : (
+                            coaches.map((coach) => (
+                              <SelectItem key={coach.id} value={coach.id}>
+                                {coach.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {errors.managerId && <p className="text-red-500 text-sm">{errors.managerId}</p>}
                   </div>
                 </div>
               </CardContent>
@@ -654,36 +829,55 @@ export default function CreateBranchPage() {
                 {/* Courses Offered */}
                 <div className="space-y-2">
                   <Label>Courses Offered *</Label>
-                  <div className="grid grid-cols-1 gap-3 max-h-48 overflow-y-auto">
-                    {availableCourses.map((course) => (
-                      <div key={course.name} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`course-offered-${course.name}`}
-                          checked={formData.operational_details.courses_offered.includes(course.name)}
-                          onCheckedChange={() => handleCoursesOfferedToggle(course.name)}
-                        />
-                        <Label htmlFor={`course-offered-${course.name}`} className="text-sm cursor-pointer">
-                          {course.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
+                  {isLoadingCourses ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600"></div>
+                      <span className="ml-2 text-sm text-gray-600">Loading courses...</span>
+                    </div>
+                  ) : courses.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3 max-h-48 overflow-y-auto">
+                      {courses.map((course) => (
+                        <div key={course.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`course-offered-${course.id}`}
+                            checked={formData.operational_details.courses_offered.includes(course.id)}
+                            onCheckedChange={() => handleCoursesOfferedToggle(course.id)}
+                          />
+                          <Label htmlFor={`course-offered-${course.id}`} className="text-sm cursor-pointer">
+                            <div className="flex flex-col">
+                              <span className="font-medium">{course.title}</span>
+                              <span className="text-xs text-gray-500">
+                                {course.code} • {course.difficulty_level} • {course.pricing.currency} {course.pricing.amount}
+                              </span>
+                            </div>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      <p className="text-sm">No courses available</p>
+                    </div>
+                  )}
                   {errors.coursesOffered && <p className="text-red-500 text-sm">{errors.coursesOffered}</p>}
-                  
+
                   {formData.operational_details.courses_offered.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {formData.operational_details.courses_offered.map((course) => (
-                        <Badge key={course} variant="secondary" className="bg-yellow-100 text-yellow-800">
-                          {course}
-                          <button
-                            type="button"
-                            onClick={() => handleCoursesOfferedToggle(course)}
-                            className="ml-2 hover:text-red-600"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </Badge>
-                      ))}
+                      {formData.operational_details.courses_offered.map((courseId) => {
+                        const course = courses.find(c => c.id === courseId)
+                        return course ? (
+                          <Badge key={courseId} variant="secondary" className="bg-yellow-100 text-yellow-800">
+                            {course.title}
+                            <button
+                              type="button"
+                              onClick={() => handleCoursesOfferedToggle(courseId)}
+                              className="ml-2 hover:text-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </Badge>
+                        ) : null
+                      })}
                     </div>
                   )}
                 </div>
@@ -858,28 +1052,44 @@ export default function CreateBranchPage() {
                 {/* Course Assignments */}
                 <div className="space-y-2">
                   <Label>Assign Courses to Branch</Label>
-                  <div className="grid grid-cols-1 gap-3 max-h-40 overflow-y-auto">
-                    {availableCourses.map((course) => (
-                      <div key={course.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`course-assign-${course.id}`}
-                          checked={formData.assignments.courses.includes(course.id)}
-                          onCheckedChange={() => handleCourseAssignmentToggle(course.id)}
-                        />
-                        <Label htmlFor={`course-assign-${course.id}`} className="text-sm cursor-pointer">
-                          {course.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  
+                  {isLoadingCourses ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600"></div>
+                      <span className="ml-2 text-sm text-gray-600">Loading courses...</span>
+                    </div>
+                  ) : courses.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3 max-h-40 overflow-y-auto">
+                      {courses.map((course) => (
+                        <div key={course.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`course-assign-${course.id}`}
+                            checked={formData.assignments.courses.includes(course.id)}
+                            onCheckedChange={() => handleCourseAssignmentToggle(course.id)}
+                          />
+                          <Label htmlFor={`course-assign-${course.id}`} className="text-sm cursor-pointer">
+                            <div className="flex flex-col">
+                              <span className="font-medium">{course.title}</span>
+                              <span className="text-xs text-gray-500">
+                                {course.code} • {course.difficulty_level} • {course.pricing.currency} {course.pricing.amount}
+                              </span>
+                            </div>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      <p className="text-sm">No courses available</p>
+                    </div>
+                  )}
+
                   {formData.assignments.courses.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2 max-h-24 overflow-y-auto">
                       {formData.assignments.courses.map((courseId) => {
-                        const course = availableCourses.find(c => c.id === courseId)
+                        const course = courses.find((c: Course) => c.id === courseId)
                         return course ? (
                           <Badge key={courseId} variant="secondary" className="bg-green-100 text-green-800">
-                            {course.name}
+                            {course.title}
                             <button
                               type="button"
                               onClick={() => handleCourseAssignmentToggle(courseId)}
@@ -894,28 +1104,39 @@ export default function CreateBranchPage() {
                   )}
                 </div>
 
-                {/* Branch Admins */}
+                {/* Coach Admins */}
                 <div className="space-y-2">
-                  <Label>Assign Branch Admins</Label>
-                  <div className="grid grid-cols-1 gap-3 max-h-32 overflow-y-auto">
-                    {availableCoaches.map((coach) => (
-                      <div key={coach.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`admin-${coach.id}`}
-                          checked={formData.assignments.branch_admins.includes(coach.id)}
-                          onCheckedChange={() => handleBranchAdminToggle(coach.id)}
-                        />
-                        <Label htmlFor={`admin-${coach.id}`} className="text-sm cursor-pointer">
-                          {coach.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  
+                  <Label>Assign Coach Admins</Label>
+                  {isLoadingCoaches ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600"></div>
+                      <span className="ml-2 text-sm text-gray-600">Loading coaches...</span>
+                    </div>
+                  ) : coaches.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3 max-h-32 overflow-y-auto">
+                      {coaches.map((coach) => (
+                        <div key={coach.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`admin-${coach.id}`}
+                            checked={formData.assignments.branch_admins.includes(coach.id)}
+                            onCheckedChange={() => handleBranchAdminToggle(coach.id)}
+                          />
+                          <Label htmlFor={`admin-${coach.id}`} className="text-sm cursor-pointer">
+                            {coach.name}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-gray-500">
+                      <p className="text-sm">No coaches available</p>
+                    </div>
+                  )}
+
                   {formData.assignments.branch_admins.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2 max-h-20 overflow-y-auto">
                       {formData.assignments.branch_admins.map((coachId) => {
-                        const coach = availableCoaches.find(c => c.id === coachId)
+                        const coach = coaches.find(c => c.id === coachId)
                         return coach ? (
                           <Badge key={coachId} variant="secondary" className="bg-purple-100 text-purple-800">
                             {coach.name}
