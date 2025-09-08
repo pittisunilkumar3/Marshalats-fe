@@ -14,7 +14,7 @@ class FrontendTester {
             failed: 0,
             errors: []
         };
-        this.baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8001';
+        this.baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://82.29.165.77:8003';
     }
 
     logResult(testName, success, message = '') {

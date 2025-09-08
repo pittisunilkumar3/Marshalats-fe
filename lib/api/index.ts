@@ -14,7 +14,7 @@ export { baseAPI } from '../baseAPI'
 
 // API configuration utilities
 export const getAPIBaseURL = (): string => {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8001'
+  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://82.29.165.77:8003'
 }
 
 // Helper function to check if API is in development mode

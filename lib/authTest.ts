@@ -13,7 +13,7 @@ export interface LoginTestResult {
  * Test authentication flows for all user types
  */
 export class AuthTester {
-  private static readonly BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001'
+  private static readonly BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://82.29.165.77:8003'
 
   /**
    * Test superadmin login flow

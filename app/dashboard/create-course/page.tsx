@@ -79,7 +79,7 @@ export default function CreateCoursePage() {
     const fetchCategories = async () => {
       try {
         setIsLoadingCategories(true)
-        const response = await fetch('http://localhost:8001/categories/public/details?active_only=true')
+        const response = await fetch('http://82.29.165.77:8003/categories/public/details?active_only=true')
 
         if (!response.ok) {
           throw new Error('Failed to fetch categories')
