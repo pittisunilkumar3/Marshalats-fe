@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, Edit, Trash2, RefreshCw } from "lucide-react"
+import { Search, Edit, Trash2, RefreshCw, Eye } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
@@ -243,6 +243,10 @@ export default function StudentList() {
   const handleDeleteCancel = () => {
     setStudentToDelete(null)
     setShowDeletePopup(false)
+  }
+
+  const handleViewClick = (studentId: string) => {
+    router.push(`/dashboard/students/${studentId}`)
   }
 
   const handleEditClick = (studentId: string) => {
@@ -500,8 +504,18 @@ export default function StudentList() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleViewClick(student.id)}
+                            className="p-1 h-8 w-8"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4 text-blue-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleEditClick(student.id)}
                             className="p-1 h-8 w-8"
+                            title="Edit Student"
                           >
                             <Edit className="w-4 h-4 text-gray-600" />
                           </Button>
@@ -510,6 +524,7 @@ export default function StudentList() {
                             size="sm"
                             onClick={() => handleDeleteClick(student.id)}
                             className="p-1 h-8 w-8"
+                            title="Delete Student"
                           >
                             <Trash2 className="w-4 h-4 text-gray-600" />
                           </Button>

@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, Edit, Trash2, X } from "lucide-react"
+import { Search, Edit, Trash2, X, Eye } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
@@ -155,6 +155,10 @@ export default function BranchesList() {
     }
   }
 
+  const handleViewClick = (branchId: string) => {
+    router.push(`/dashboard/branches/${branchId}`)
+  }
+
   const handleEditClick = (branchId: string) => {
     router.push(`/dashboard/branches/edit/${branchId}`)
   }
@@ -275,10 +279,25 @@ export default function BranchesList() {
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch.phone}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex items-center space-x-2">
-                        <button className="text-gray-400 hover:text-gray-600" onClick={() => handleEditClick(branch.id)}>
+                        <button
+                          className="text-blue-400 hover:text-blue-600"
+                          onClick={() => handleViewClick(branch.id)}
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          className="text-gray-400 hover:text-gray-600"
+                          onClick={() => handleEditClick(branch.id)}
+                          title="Edit Branch"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button className="text-gray-400 hover:text-red-600" onClick={() => handleDeleteClick(branch.id)}>
+                        <button
+                          className="text-gray-400 hover:text-red-600"
+                          onClick={() => handleDeleteClick(branch.id)}
+                          title="Delete Branch"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                         <Switch

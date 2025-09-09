@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Edit, Trash2, ToggleLeft, ToggleRight } from "lucide-react"
+import { Search, Edit, Trash2, ToggleLeft, ToggleRight, Eye } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
@@ -139,6 +139,10 @@ export default function CoachesListPage() {
         alert(`Error deleting coach: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
+  }
+
+  const handleViewClick = (coachId: string) => {
+    router.push(`/dashboard/coaches/${coachId}`)
   }
 
   const handleEditClick = (coachId: string) => {
@@ -284,8 +288,18 @@ export default function CoachesListPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => handleViewClick(coach.id)}
+                              className="p-1 h-8 w-8"
+                              title="View Details"
+                            >
+                              <Eye className="w-4 h-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleEditClick(coach.id)}
                               className="p-1 h-8 w-8"
+                              title="Edit Coach"
                             >
                               <Edit className="w-4 h-4 text-gray-600" />
                             </Button>
@@ -294,6 +308,7 @@ export default function CoachesListPage() {
                               size="sm"
                               onClick={() => handleDeleteClick(coach.id)}
                               className="p-1 h-8 w-8"
+                              title="Delete Coach"
                             >
                               <Trash2 className="w-4 h-4 text-red-600" />
                             </Button>

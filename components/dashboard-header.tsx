@@ -7,7 +7,9 @@ import { Bell, Search, ChevronDown, MoreHorizontal, Menu } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuPortal } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useRouter, usePathname } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
+import { searchAPI, SearchResult, GlobalSearchResponse } from "@/lib/searchAPI"
+import SearchResults from "@/components/search-results"
 
 interface DashboardHeaderProps {
   currentPage?: string;
@@ -17,6 +19,105 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Search functionality state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [totalResults, setTotalResults] = useState(0);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Search functionality
+  const performSearch = async (query: string) => {
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setTotalResults(0);
+      return;
+    }
+
+    setIsSearching(true);
+    setShowSearchResults(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error("No authentication token found");
+        return;
+      }
+
+      const response = await searchAPI.globalSearch(query, token, { limit: 10 });
+      const transformedResults = searchAPI.transformResults(response);
+
+      setSearchResults(transformedResults);
+      setTotalResults(response.total_results);
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
+      setTotalResults(0);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      performSearch(query);
+    }, 300);
+  };
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchQuery.length >= 2) {
+        performSearch(searchQuery);
+      }
+    }
+    if (e.key === 'Escape') {
+      setShowSearchResults(false);
+      setSearchQuery("");
+    }
+  };
+
+  const handleCloseSearch = () => {
+    setShowSearchResults(false);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Logout handler
   const handleLogout = () => {
@@ -294,12 +395,24 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
 
           {/* Search and User Controls */}
           <div className="flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
-            <div className="relative hidden lg:block">
+            <div className="relative hidden lg:block" ref={searchContainerRef}>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Try searching: User Name, Course Name, User ID"
                 className="pl-10 w-64 xl:w-80 bg-gray-50"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onKeyDown={handleSearchKeyPress}
               />
+              {showSearchResults && (
+                <SearchResults
+                  results={searchResults}
+                  isLoading={isSearching}
+                  query={searchQuery}
+                  totalResults={totalResults}
+                  onClose={handleCloseSearch}
+                />
+              )}
             </div>
 
             <div className="relative">

@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search, Edit, Trash2, X, ToggleLeft, ToggleRight, ChevronDown } from "lucide-react"
+import { Search, Edit, Trash2, X, ToggleLeft, ToggleRight, ChevronDown, Eye } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import DashboardHeader from "@/components/dashboard-header"
@@ -114,6 +114,10 @@ export default function CourseListPage() {
 
   const handleCourseToggle = (course: string) => {
     setSelectedCourses((prev) => (prev.includes(course) ? prev.filter((c) => c !== course) : [...prev, course]))
+  }
+
+  const handleViewClick = (courseId: string) => {
+    router.push(`/dashboard/courses/${courseId}`)
   }
 
   const handleEditClick = (courseId: string) => {
@@ -294,8 +298,18 @@ export default function CourseListPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleViewClick(course.id)}
+                            className="p-1 h-8 w-8"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4 text-blue-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleEditClick(course.id)}
                             className="p-1 h-8 w-8"
+                            title="Edit Course"
                           >
                             <Edit className="w-4 h-4 text-gray-600" />
                           </Button>
@@ -304,6 +318,7 @@ export default function CourseListPage() {
                             size="sm"
                             onClick={() => handleDeleteClick(course.id)}
                             className="p-1 h-8 w-8"
+                            title="Delete Course"
                           >
                             <Trash2 className="w-4 h-4 text-gray-600" />
                           </Button>
