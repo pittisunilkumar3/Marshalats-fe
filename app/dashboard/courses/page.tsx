@@ -59,15 +59,9 @@ export default function CourseListPage() {
         setLoading(true)
         setError(null)
 
-        const token = TokenManager.getToken()
-        if (!token) {
-          throw new Error("Authentication token not found. Please login again.")
-        }
-
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/public/all`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         })
