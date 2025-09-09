@@ -124,7 +124,7 @@ export default function StudentDetailPage() {
       }
 
       // Fetch student details
-      const studentResponse = await fetch(`http://localhost:8003/users/${studentId}`, {
+      const studentResponse = await fetch(`http://82.29.165.77:8003/users/${studentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
