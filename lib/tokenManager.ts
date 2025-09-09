@@ -70,6 +70,7 @@ export class TokenManager {
 
     // Store individual items for backward compatibility
     localStorage.setItem(this.ACCESS_TOKEN_KEY, token)
+    localStorage.setItem('token', token) // Backward compatibility for existing code
     localStorage.setItem(this.TOKEN_TYPE_KEY, authData.token_type || 'bearer')
     localStorage.setItem(this.EXPIRES_IN_KEY, expiresIn.toString())
     localStorage.setItem(this.TOKEN_EXPIRATION_KEY, expirationTime.toString())

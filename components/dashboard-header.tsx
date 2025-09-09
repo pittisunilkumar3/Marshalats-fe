@@ -278,6 +278,9 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => router.push("/dashboard/categories")}>
+                    Categories Management
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push("/dashboard/payment-tracking")}>
                     Payment Tracking
                   </DropdownMenuItem>

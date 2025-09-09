@@ -6,8 +6,8 @@ export default function AccountCreatedPage() {
   const router = useRouter()
 
   const handleLetsStart = () => {
-    // Route to dashboard
-    router.push("/dashboard")
+    // Route to student login page since user needs to log in first
+    router.push("/login")
   }
 
   return (
