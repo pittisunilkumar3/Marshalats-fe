@@ -5,6 +5,7 @@ export * from '../branchAPI'
 export * from '../studentAPI'
 export * from '../authAPI'
 export * from '../searchAPI'
+export * from '../dashboardAPI'
 
 // Re-export commonly used API instances
 export { courseAPI } from '../courseAPI'
@@ -13,6 +14,7 @@ export { studentAPI } from '../studentAPI'
 export { authAPI } from '../authAPI'
 export { baseAPI } from '../baseAPI'
 export { searchAPI } from '../searchAPI'
+export { dashboardAPI } from '../dashboardAPI'
 
 // API configuration utilities
 export const getAPIBaseURL = (): string => {

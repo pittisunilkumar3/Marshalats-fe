@@ -4,14 +4,98 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Star, Users, BookOpen } from "lucide-react"
+import { Star, Users, BookOpen, Loader2, AlertCircle } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import DashboardHeader from "@/components/dashboard-header"
 
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { dashboardAPI, DashboardStats, Coach } from "@/lib/api"
+import { TokenManager } from "@/lib/tokenManager"
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
+
+  // State management
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
+  const [coaches, setCoaches] = useState<Coach[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [coachesLoading, setCoachesLoading] = useState(true)
+  const [coachesError, setCoachesError] = useState<string | null>(null)
+
+  // Fetch dashboard statistics
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const token = TokenManager.getToken()
+        if (!token) {
+          setError("Authentication required. Please login again.")
+          return
+        }
+
+        const response = await dashboardAPI.getDashboardStats(token)
+        setDashboardStats(response.dashboard_stats)
+      } catch (err: any) {
+        console.error("Error fetching dashboard stats:", err)
+        setError(err.message || "Failed to fetch dashboard statistics")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardStats()
+  }, [])
+
+  // Fetch coaches list
+  useEffect(() => {
+    const fetchCoaches = async () => {
+      try {
+        setCoachesLoading(true)
+        setCoachesError(null)
+
+        const token = TokenManager.getToken()
+        if (!token) {
+          setCoachesError("Authentication required. Please login again.")
+          return
+        }
+
+        const response = await dashboardAPI.getCoaches(token, {
+          limit: 5,
+          active_only: true
+        })
+        setCoaches(response.coaches || [])
+      } catch (err: any) {
+        console.error("Error fetching coaches:", err)
+        setCoachesError(err.message || "Failed to fetch coaches")
+      } finally {
+        setCoachesLoading(false)
+      }
+    }
+
+    fetchCoaches()
+  }, [])
+
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  }
+
+  // Format large numbers
+  const formatNumber = (num: number) => {
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'k'
+    }
+    return num.toString()
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -63,65 +147,106 @@ export default function SuperAdminDashboard() {
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                  <p className="text-2xl font-bold">$46.34k</p>
-                  <p className="text-xs text-gray-500">Earning this month</p>
+          {loading ? (
+            // Loading state
+            Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                      <div className="h-3 bg-gray-200 rounded animate-pulse"></div>
+                    </div>
+                    <div className="h-6 w-16 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : error ? (
+            // Error state
+            <Card className="md:col-span-4">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center space-x-2 text-red-600">
+                  <AlertCircle className="w-5 h-5" />
+                  <span>{error}</span>
                 </div>
-                <Badge variant="secondary" className="bg-gray-100">
-                  Monthly
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            // Data loaded successfully
+            <>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
+                      <p className="text-2xl font-bold">
+                        {dashboardStats ? formatCurrency(dashboardStats.monthly_revenue) : '$0'}
+                      </p>
+                      <p className="text-xs text-gray-500">Earning this month</p>
+                    </div>
+                    <Badge variant="secondary" className="bg-gray-100">
+                      Monthly
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Active Students</p>
-                  <p className="text-2xl font-bold">370</p>
-                  <p className="text-xs text-gray-500">Active users this month</p>
-                </div>
-                <Badge variant="secondary" className="bg-gray-100">
-                  Monthly
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Active Students</p>
+                      <p className="text-2xl font-bold">
+                        {dashboardStats ? dashboardStats.active_students : 0}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {dashboardStats ? dashboardStats.monthly_active_users : 0} active this month
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="bg-gray-100">
+                      Monthly
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Active Courses</p>
-                  <p className="text-2xl font-bold">10+</p>
-                  <p className="text-xs text-gray-500">Active courses in all branches</p>
-                </div>
-                <Badge variant="secondary" className="bg-gray-100">
-                  Most popular
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Active Courses</p>
+                      <p className="text-2xl font-bold">
+                        {dashboardStats ? dashboardStats.active_courses : 0}
+                      </p>
+                      <p className="text-xs text-gray-500">Active courses in all branches</p>
+                    </div>
+                    <Badge variant="secondary" className="bg-gray-100">
+                      Available
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Number of Users</p>
-                  <p className="text-2xl font-bold">800+</p>
-                  <p className="text-xs text-gray-500">Total no of orders</p>
-                </div>
-                <Badge variant="secondary" className="bg-gray-100">
-                  NEW
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Users</p>
+                      <p className="text-2xl font-bold">
+                        {dashboardStats ? formatNumber(dashboardStats.total_users) : 0}
+                      </p>
+                      <p className="text-xs text-gray-500">All active users</p>
+                    </div>
+                    <Badge variant="secondary" className="bg-gray-100">
+                      Active
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Revenue Chart and Coaches List */}
@@ -189,39 +314,82 @@ export default function SuperAdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[
-                  { name: "Emily Tyler", specialty: "Bharathanatayam", rating: 5 },
-                  { name: "Blake Silva", specialty: "Kick boxing", rating: 5 },
-                  { name: "Oscar Holloway", specialty: "Kungfu", rating: 5 },
-                  { name: "Shawn Stone", specialty: "Kungfu", rating: 4.5 },
-                  { name: "Wayne Marsh", specialty: "Boxing", rating: 4.5 },
-                ].map((coach, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src="/placeholder.svg" />
-                        <AvatarFallback>
-                          {coach.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium text-sm">{coach.name}</p>
-                        <p className="text-xs text-gray-500">{coach.specialty}</p>
+                {coachesLoading ? (
+                  // Loading state for coaches
+                  Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+                        <div className="space-y-1">
+                          <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                          <div className="h-3 w-16 bg-gray-200 rounded animate-pulse"></div>
+                        </div>
+                      </div>
+                      <div className="flex space-x-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <div key={i} className="w-4 h-4 bg-gray-200 rounded animate-pulse"></div>
+                        ))}
                       </div>
                     </div>
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${i < Math.floor(coach.rating) ? "text-yellow-400 fill-current" : "text-gray-300"}`}
-                        />
-                      ))}
-                    </div>
+                  ))
+                ) : coachesError ? (
+                  // Error state for coaches
+                  <div className="flex items-center justify-center space-x-2 text-red-600 py-4">
+                    <AlertCircle className="w-5 h-5" />
+                    <span>{coachesError}</span>
                   </div>
-                ))}
+                ) : coaches.length === 0 ? (
+                  // No coaches found
+                  <div className="text-center py-4 text-gray-500">
+                    No coaches found
+                  </div>
+                ) : (
+                  // Display coaches
+                  coaches.map((coach) => (
+                    <div key={coach.id} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src="/placeholder.svg" />
+                          <AvatarFallback>
+                            {coach.full_name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-sm">{coach.full_name}</p>
+                          <p className="text-xs text-gray-500">
+                            {coach.areas_of_expertise.length > 0
+                              ? coach.areas_of_expertise[0]
+                              : "General Training"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex">
+                        {/* Default 5-star rating for now - can be enhanced later */}
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${i < 5 ? "text-yellow-400 fill-current" : "text-gray-300"}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+                {coaches.length > 0 && (
+                  <div className="pt-2 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => router.push("/dashboard/coaches")}
+                    >
+                      View All Coaches
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

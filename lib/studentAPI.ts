@@ -86,14 +86,14 @@ class StudentAPI extends BaseAPI {
   }
 
   async deleteStudent(studentId: string, token: string): Promise<any> {
-    return await this.makeRequest(`/users/${studentId}`, {
+    return await this.makeRequest(`/api/users/${studentId}`, {
       method: 'DELETE',
       token
     })
   }
 
   async deactivateStudent(studentId: string, token: string): Promise<any> {
-    return await this.makeRequest(`/users/${studentId}/deactivate`, {
+    return await this.makeRequest(`/api/users/${studentId}/deactivate`, {
       method: 'PATCH',
       token
     })

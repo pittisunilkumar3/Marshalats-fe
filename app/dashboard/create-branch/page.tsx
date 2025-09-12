@@ -207,7 +207,7 @@ export default function CreateBranchPage() {
         }
 
         // Call real backend API
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches?active_only=true&limit=100`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches?active_only=true&limit=100`, {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`

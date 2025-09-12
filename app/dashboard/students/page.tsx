@@ -79,7 +79,7 @@ export default function StudentList() {
         }
 
         // Try enhanced API first, fallback to basic API
-        let response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/students/details`, {
+        let response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/students/details`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -90,7 +90,7 @@ export default function StudentList() {
         // If enhanced API fails, try basic users API
         if (!response.ok) {
           console.log("Enhanced API failed, trying basic users API...")
-          response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users?role=student`, {
+          response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users?role=student`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -194,7 +194,7 @@ export default function StudentList() {
 
         console.log("🚀 Making DELETE request to:", `${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${studentToDelete}`)
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${studentToDelete}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${studentToDelete}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -263,7 +263,7 @@ export default function StudentList() {
       const student = (Array.isArray(students) ? students : []).find(s => s.id === studentId)
       if (!student) return
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${studentId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${studentId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

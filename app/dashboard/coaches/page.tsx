@@ -62,7 +62,7 @@ export default function CoachesListPage() {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -116,7 +116,7 @@ export default function CoachesListPage() {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches/${selectedCoach}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/${selectedCoach}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -159,7 +159,7 @@ export default function CoachesListPage() {
       const coach = coaches.find(c => c.id === coachId)
       if (!coach) return
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches/${coachId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/${coachId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
