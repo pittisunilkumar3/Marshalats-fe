@@ -59,7 +59,7 @@ export default function CourseListPage() {
         setLoading(true)
         setError(null)
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/public/all`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses/public/all`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'

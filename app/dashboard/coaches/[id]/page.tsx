@@ -105,7 +105,7 @@ export default function CoachDetailPage() {
       }
 
       // Fetch coach details
-      const coachResponse = await fetch(`http://82.29.165.77:8003/coaches/${coachId}`, {
+      const coachResponse = await fetch(`http://localhost:8003/coaches/${coachId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

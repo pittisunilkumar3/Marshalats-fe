@@ -117,7 +117,7 @@ export default function CourseDetailPage() {
       }
 
       // Fetch course details
-      const courseResponse = await fetch(`http://82.29.165.77:8003/courses/${courseId}`, {
+      const courseResponse = await fetch(`http://localhost:8003/courses/${courseId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

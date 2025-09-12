@@ -226,7 +226,7 @@ export default function AddCoachPage() {
         }
 
         // Call real backend API
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches?limit=100`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches?limit=100`, {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -272,7 +272,7 @@ export default function AddCoachPage() {
         setIsLoadingCourses(true)
 
         // Use public endpoint for courses (no authentication required)
-        const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/public/all`, {
+        const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses/public/all`, {
           headers: {
             'Content-Type': 'application/json'
           }

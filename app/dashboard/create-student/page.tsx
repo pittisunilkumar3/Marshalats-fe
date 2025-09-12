@@ -185,7 +185,7 @@ export default function CreateStudent() {
       try {
         // Load locations
         setIsLoadingLocations(true)
-        const locationsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/locations/public/details?active_only=true`)
+        const locationsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations/public/details?active_only=true`)
         if (locationsResponse.ok) {
           const locationsData = await locationsResponse.json()
           setLocations(locationsData.locations || [])
@@ -204,7 +204,7 @@ export default function CreateStudent() {
       try {
         // Load branches
         setIsLoadingBranches(true)
-        const branchesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/locations/public/with-branches?active_only=true`)
+        const branchesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations/public/with-branches?active_only=true`)
         if (branchesResponse.ok) {
           const branchesData = await branchesResponse.json()
 
@@ -254,7 +254,7 @@ export default function CreateStudent() {
       try {
         // Load categories
         setIsLoadingCategories(true)
-        const categoriesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/categories/public/details?active_only=true`)
+        const categoriesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories/public/details?active_only=true`)
         if (categoriesResponse.ok) {
           const categoriesData = await categoriesResponse.json()
           setCategories(categoriesData.categories || [])
@@ -484,7 +484,7 @@ export default function CreateStudent() {
       console.log("Creating student with data:", apiPayload)
 
       // Make API call using public registration endpoint (no auth required)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

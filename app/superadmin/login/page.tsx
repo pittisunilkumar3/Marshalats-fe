@@ -60,7 +60,7 @@ function SuperAdminLoginFormContent() {
       }
 
       // Call the SuperAdmin login API endpoint
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/superadmin/login`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/superadmin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody)

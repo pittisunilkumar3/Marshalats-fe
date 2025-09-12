@@ -67,11 +67,11 @@ function LoginFormContent() {
       }
 
       console.log("Student login request:", {
-        url: `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/login`,
+        url: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/login`,
         body: { ...requestBody, password: "***hidden***" }
       });
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/login`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody)

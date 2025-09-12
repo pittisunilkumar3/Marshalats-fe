@@ -76,7 +76,7 @@ export default function BranchesList() {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,

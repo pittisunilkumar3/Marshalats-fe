@@ -106,7 +106,7 @@ export default function CategoriesManagementPage() {
   const fetchCategories = async () => {
     try {
       const token = TokenManager.getToken()
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/categories?active_only=${showActiveOnly}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories?active_only=${showActiveOnly}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -198,9 +198,9 @@ export default function CategoriesManagementPage() {
         color_code: formData.color_code || undefined
       }
 
-      const url = editingCategory 
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/categories/${editingCategory.id}`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/categories`
+      const url = editingCategory
+        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories/${editingCategory.id}`
+        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories`
       
       const method = editingCategory ? 'PUT' : 'POST'
 
