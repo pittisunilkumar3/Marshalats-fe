@@ -6,12 +6,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Edit, Trash2, ToggleLeft, ToggleRight, Eye } from "lucide-react"
+import { Search, Edit, Trash2, ToggleLeft, ToggleRight, Eye, Mail, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
 import DashboardHeader from "@/components/dashboard-header"
 import { TokenManager } from "@/lib/tokenManager"
+import { useToast } from "@/hooks/use-toast"
 
 interface Coach {
   id: string
@@ -39,10 +40,14 @@ interface Coach {
 
 export default function CoachesListPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [showAssignPopup, setShowAssignPopup] = useState(false)
   const [showDeletePopup, setShowDeletePopup] = useState(false)
+  const [showSendCredentialsPopup, setShowSendCredentialsPopup] = useState(false)
   const [selectedCoach, setSelectedCoach] = useState<string | null>(null)
+  const [selectedCoachForCredentials, setSelectedCoachForCredentials] = useState<Coach | null>(null)
+  const [isSendingCredentials, setIsSendingCredentials] = useState(false)
   const [assignData, setAssignData] = useState({ branch: "", coach: "" })
   const [coaches, setCoaches] = useState<Coach[]>([])
   const [loading, setLoading] = useState(true)
@@ -147,6 +152,56 @@ export default function CoachesListPage() {
 
   const handleEditClick = (coachId: string) => {
     router.push(`/dashboard/coaches/edit/${coachId}`)
+  }
+
+  const handleSendCredentialsClick = (coach: Coach) => {
+    setSelectedCoachForCredentials(coach)
+    setShowSendCredentialsPopup(true)
+  }
+
+  const handleSendCredentialsConfirm = async () => {
+    if (!selectedCoachForCredentials) return
+
+    setIsSendingCredentials(true)
+    try {
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/${selectedCoachForCredentials.id}/send-credentials`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || `Failed to send credentials (${response.status})`)
+      }
+
+      const result = await response.json()
+
+      toast({
+        title: "Success",
+        description: `Login credentials have been sent to ${selectedCoachForCredentials.contact_info.email}`,
+      })
+
+      setShowSendCredentialsPopup(false)
+      setSelectedCoachForCredentials(null)
+
+    } catch (error) {
+      console.error("Error sending credentials:", error)
+      toast({
+        title: "Error",
+        description: `Failed to send credentials: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive"
+      })
+    } finally {
+      setIsSendingCredentials(false)
+    }
   }
 
   const toggleCoachStatus = async (coachId: string) => {
@@ -306,6 +361,15 @@ export default function CoachesListPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => handleSendCredentialsClick(coach)}
+                              className="p-1 h-8 w-8"
+                              title="Send Credentials via Email"
+                            >
+                              <Mail className="w-4 h-4 text-green-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleDeleteClick(coach.id)}
                               className="p-1 h-8 w-8"
                               title="Delete Coach"
@@ -431,6 +495,53 @@ export default function CoachesListPage() {
                 </Button>
                 <Button onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700 text-white flex-1">
                   Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Credentials Confirmation Popup */}
+      {showSendCredentialsPopup && selectedCoachForCredentials && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-8 h-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Send Login Credentials</h3>
+              <p className="text-gray-600 mb-2">
+                Send login credentials to <strong>{selectedCoachForCredentials.full_name}</strong>?
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                Email will be sent to: <strong>{selectedCoachForCredentials.contact_info.email}</strong>
+              </p>
+              <div className="flex space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSendCredentialsPopup(false)
+                    setSelectedCoachForCredentials(null)
+                  }}
+                  className="flex-1"
+                  disabled={isSendingCredentials}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSendCredentialsConfirm}
+                  className="bg-green-600 hover:bg-green-700 text-white flex-1"
+                  disabled={isSendingCredentials}
+                >
+                  {isSendingCredentials ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    'Send Credentials'
+                  )}
                 </Button>
               </div>
             </div>
