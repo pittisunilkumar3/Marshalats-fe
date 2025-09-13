@@ -451,7 +451,7 @@ export default function CreateStudent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -459,45 +459,92 @@ export default function CreateStudent() {
     setIsSubmitting(true)
 
     try {
-      // Create API payload according to backend User Management API specification
-      const apiPayload = {
-        email: formData.email,
-        phone: `${formData.countryCode}${formData.contactNumber}`,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        role: "student",
-        password: formData.password || "TempPassword123!",
-        date_of_birth: formData.dob || undefined,
-        gender: formData.gender || undefined,
-        biometric_id: formData.biometricId || undefined,
-        course: formData.course ? {
-          category_id: formData.category,
+      // Check if payment processing is required
+      const requiresPayment = formData.course && formData.branch && formData.category
+
+      if (requiresPayment) {
+        // Use payment processing endpoint for complete registration with payment
+        const paymentData = {
+          student_data: {
+            email: formData.email,
+            phone: `${formData.countryCode}${formData.contactNumber}`,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            full_name: `${formData.firstName} ${formData.lastName}`,
+            role: "student",
+            password: formData.password || "TempPassword123!",
+            date_of_birth: formData.dob || undefined,
+            gender: formData.gender || undefined,
+            biometric_id: formData.biometricId || undefined,
+            is_active: true
+          },
           course_id: formData.course,
-          duration: formData.duration || "3-months"
-        } : undefined,
-        branch: formData.branch ? {
-          location_id: formData.location,
-          branch_id: formData.branch
-        } : undefined
-      }
+          branch_id: formData.branch,
+          category_id: formData.category,
+          duration: formData.duration || "3-months",
+          payment_method: "cash" // Default to cash for manual registrations
+        }
 
-      console.log("Creating student with data:", apiPayload)
+        console.log("Creating student with payment processing:", paymentData)
 
-      // Make API call using public registration endpoint (no auth required)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(apiPayload),
-      })
-      
-      if (response.ok) {
-        const result = await response.json()
-        console.log('Student created successfully:', result)
-        setShowSuccessPopup(true)
+        // Use payment processing endpoint
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/payments/process-registration`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(paymentData),
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          console.log('Student created with payment processing:', result)
+          setShowSuccessPopup(true)
+        } else {
+          const errorData = await response.json()
+          setErrors({ submit: errorData.detail || 'Failed to create student with payment. Please try again.' })
+          console.error('Student creation with payment failed:', errorData)
+        }
       } else {
-        const errorData = await response.json()
+        // Use regular registration endpoint for students without course/branch
+        const apiPayload = {
+          email: formData.email,
+          phone: `${formData.countryCode}${formData.contactNumber}`,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          role: "student",
+          password: formData.password || "TempPassword123!",
+          date_of_birth: formData.dob || undefined,
+          gender: formData.gender || undefined,
+          biometric_id: formData.biometricId || undefined,
+          course: formData.course ? {
+            category_id: formData.category,
+            course_id: formData.course,
+            duration: formData.duration || "3-months"
+          } : undefined,
+          branch: formData.branch ? {
+            location_id: formData.location,
+            branch_id: formData.branch
+          } : undefined
+        }
+
+        console.log("Creating student without payment:", apiPayload)
+
+        // Make API call using public registration endpoint (no auth required)
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(apiPayload),
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          console.log('Student created successfully:', result)
+          setShowSuccessPopup(true)
+        } else {
+          const errorData = await response.json()
         setErrors({ submit: errorData.message || 'Failed to create student. Please try again.' })
         console.error('Student creation failed:', errorData)
       }
@@ -982,6 +1029,34 @@ export default function CreateStudent() {
                     </div>
                   </div>
                 </div>
+
+                {/* Payment Information Section */}
+                {formData.course && formData.branch && formData.category && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">Payment Information</h3>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                      <div className="flex items-start space-x-3">
+                        <div className="flex-shrink-0">
+                          <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-medium text-yellow-800 mb-1">Payment Processing Enabled</h4>
+                          <p className="text-sm text-yellow-700 mb-2">
+                            Since you've selected a course and branch, this registration will include automatic payment processing.
+                          </p>
+                          <div className="text-xs text-yellow-600 space-y-1">
+                            <p>• Payment method: Cash (default for manual registrations)</p>
+                            <p>• Payment status: Will be marked as paid upon successful registration</p>
+                            <p>• Student will receive payment confirmation via SMS</p>
+                            <p>• Superadmin will be notified of the new registration and payment</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Location Information Section */}
                 <div className="space-y-4">

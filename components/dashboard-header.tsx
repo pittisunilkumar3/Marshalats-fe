@@ -10,6 +10,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
 import { searchAPI, SearchResult, GlobalSearchResponse } from "@/lib/searchAPI"
 import SearchResults from "@/components/search-results"
+import NotificationDropdown from "@/components/notification-dropdown"
 
 interface DashboardHeaderProps {
   currentPage?: string;
@@ -415,10 +416,7 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
               )}
             </div>
 
-            <div className="relative">
-              <Bell className="w-5 h-5 text-gray-600" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full"></div>
-            </div>
+            <NotificationDropdown />
 
             <div className="relative z-[1000]">
               <DropdownMenu>

@@ -1,14 +1,86 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useRegistration } from "@/contexts/RegistrationContext"
+
+interface PaymentCalculation {
+  course_fee: number
+  admission_fee: number
+  total_amount: number
+  currency: string
+  duration_multiplier: number
+}
+
+interface CoursePaymentInfo {
+  course_id: string
+  course_name: string
+  category_name: string
+  branch_name: string
+  duration: string
+  pricing: PaymentCalculation
+}
+
+interface PaymentResult {
+  payment_id: string
+  student_id: string
+  transaction_id: string
+  amount: number
+  status: string
+  message: string
+}
 
 export default function PaymentConfirmationPage() {
   const router = useRouter()
   const { registrationData, getApiPayload, clearRegistrationData } = useRegistration()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
+  const [transactionId, setTransactionId] = useState("")
+  const [paymentInfo, setPaymentInfo] = useState<CoursePaymentInfo | null>(null)
+  const [loadingPaymentInfo, setLoadingPaymentInfo] = useState(true)
+
+  // Generate transaction ID on component mount
+  useEffect(() => {
+    const txnId = `TXN${Date.now()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`
+    setTransactionId(txnId)
+  }, [])
+
+  // Fetch payment info on component mount
+  useEffect(() => {
+    const fetchPaymentInfo = async () => {
+      if (!registrationData.course_id || !registrationData.branch_id || !registrationData.duration) {
+        setLoadingPaymentInfo(false)
+        return
+      }
+
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/courses/${registrationData.course_id}/payment-info?` +
+          `branch_id=${registrationData.branch_id}&duration=${registrationData.duration}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        if (response.ok) {
+          const data = await response.json()
+          setPaymentInfo(data)
+        } else {
+          console.error('Failed to fetch payment info')
+        }
+      } catch (error) {
+        console.error('Error fetching payment info:', error)
+      } finally {
+        setLoadingPaymentInfo(false)
+      }
+    }
+
+    fetchPaymentInfo()
+  }, [registrationData.course_id, registrationData.branch_id, registrationData.duration])
 
   const handleResendLink = () => {
     // Handle resend link logic
@@ -18,33 +90,47 @@ export default function PaymentConfirmationPage() {
   const handleConfirm = async () => {
     setIsLoading(true)
     setError("")
-    
+
     try {
-      // Get the API payload
-      const payload = getApiPayload()
-      
-      // Make API call to register endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/register`, {
+      // Prepare payment data
+      const paymentData = {
+        student_data: getApiPayload(),
+        course_id: registrationData.course_id,
+        branch_id: registrationData.branch_id,
+        category_id: registrationData.category_id,
+        duration: registrationData.duration,
+        payment_method: registrationData.paymentMethod || 'credit_card',
+        card_details: registrationData.paymentMethod === 'credit_card' ? {
+          cardNumber: registrationData.cardNumber,
+          expiryDate: registrationData.expiryDate,
+          cvv: registrationData.cvv,
+          nameOnCard: registrationData.nameOnCard,
+        } : undefined
+      }
+
+      // Make API call to payment processing endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/payments/process-registration`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(paymentData),
       })
-      
+
       if (response.ok) {
         const result = await response.json()
-        console.log('Registration successful:', result)
-        
-        // Clear registration data
-        clearRegistrationData()
-        
-        // Route to account created page
-        router.push("/register/account-created")
+        console.log('Payment processed successfully:', result)
+        setPaymentResult(result)
+
+        // Clear registration data after successful payment
+        setTimeout(() => {
+          clearRegistrationData()
+          router.push("/register/account-created")
+        }, 2000)
       } else {
         const errorData = await response.json()
-        setError(errorData.message || 'Registration failed. Please try again.')
-        console.error('Registration failed:', errorData)
+        setError(errorData.message || 'Payment processing failed. Please try again.')
+        console.error('Payment failed:', errorData)
       }
     } catch (error) {
       setError('Network error. Please check your connection and try again.')
@@ -70,41 +156,132 @@ export default function PaymentConfirmationPage() {
 
           {/* Header */}
           <div className="text-center space-y-4">
-            <h1 className="text-3xl font-bold text-black">Payment Confirmation</h1>
+            <h1 className="text-3xl font-bold text-black">
+              {paymentResult ? 'Payment Successful!' : 'Payment Confirmation'}
+            </h1>
             <div className="space-y-3">
-              <p className="text-gray-600 text-base">Confirmation link sent to Rock Martial Arts</p>
-              <p className="text-gray-600 text-base">Payment confirmation is pending, please wait</p>
+              {paymentResult ? (
+                <>
+                  <p className="text-gray-600 text-base">Your registration has been completed successfully</p>
+                  <p className="text-gray-600 text-base">Welcome to our martial arts academy!</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-600 text-base">Processing your payment and registration</p>
+                  <p className="text-gray-600 text-base">Please wait while we confirm your payment</p>
+                </>
+              )}
             </div>
           </div>
 
           {/* Status Card */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 space-y-4">
+          <div className={`rounded-xl p-6 space-y-4 ${
+            paymentResult
+              ? 'bg-green-50 border border-green-200'
+              : 'bg-yellow-50 border border-yellow-200'
+          }`}>
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                paymentResult
+                  ? 'bg-green-400'
+                  : 'bg-yellow-400'
+              }`}>
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  {paymentResult ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  )}
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-yellow-800">Payment Pending</h3>
-                <p className="text-yellow-700 text-sm">Awaiting confirmation from administration</p>
+                <h3 className={`font-semibold ${
+                  paymentResult
+                    ? 'text-green-800'
+                    : 'text-yellow-800'
+                }`}>
+                  {paymentResult ? 'Payment Completed' : 'Payment Processing'}
+                </h3>
+                <p className={`text-sm ${
+                  paymentResult
+                    ? 'text-green-700'
+                    : 'text-yellow-700'
+                }`}>
+                  {paymentResult
+                    ? 'Registration confirmed and account created'
+                    : 'Awaiting payment confirmation'}
+                </p>
               </div>
             </div>
-            
-            <div className="bg-white rounded-lg p-4 border border-yellow-100">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600 text-sm">Transaction ID:</span>
-                <span className="font-mono text-sm text-gray-800">TXN8478042099</span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600 text-sm">Amount:</span>
-                <span className="font-semibold text-gray-800">₹16,200</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 text-sm">Status:</span>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                  Pending Confirmation
-                </span>
+
+            <div className="bg-white rounded-lg p-4 border border-gray-100 space-y-3">
+              {/* Course Information */}
+              {paymentInfo && (
+                <div className="border-b border-gray-100 pb-3">
+                  <h4 className="font-semibold text-gray-800 mb-2">Course Details</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Course:</span>
+                      <span className="text-gray-800">{paymentInfo.course_name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Category:</span>
+                      <span className="text-gray-800">{paymentInfo.category_name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Branch:</span>
+                      <span className="text-gray-800">{paymentInfo.branch_name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Duration:</span>
+                      <span className="text-gray-800">{paymentInfo.duration}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Breakdown */}
+              {paymentInfo && (
+                <div className="border-b border-gray-100 pb-3">
+                  <h4 className="font-semibold text-gray-800 mb-2">Payment Breakdown</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Course Fee:</span>
+                      <span className="text-gray-800">₹{paymentInfo.pricing.course_fee.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Admission Fee:</span>
+                      <span className="text-gray-800">₹{paymentInfo.pricing.admission_fee.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold">
+                      <span className="text-gray-800">Total Amount:</span>
+                      <span className="text-gray-800">₹{paymentInfo.pricing.total_amount.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Transaction Details */}
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-2">Transaction Details</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Transaction ID:</span>
+                    <span className="font-mono text-gray-800">
+                      {paymentResult?.transaction_id || transactionId}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Status:</span>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      paymentResult
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {paymentResult ? 'Completed' : 'Processing'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

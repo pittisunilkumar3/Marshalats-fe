@@ -1,74 +1,147 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, Search, ChevronDown, MoreHorizontal, Download, MessageCircle, Mail } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Bell, Search, ChevronDown, MoreHorizontal, Download, MessageCircle, Mail, DollarSign, TrendingUp, Users, Calendar, Eye, Filter } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
+import DashboardHeader from "@/components/dashboard-header"
+
+interface Payment {
+  id: string
+  student_id: string
+  student_name: string
+  amount: number
+  payment_type: string
+  payment_method: string
+  payment_status: string
+  transaction_id: string
+  payment_date: string
+  course_name?: string
+  branch_name?: string
+  created_at: string
+}
+
+interface PaymentStats {
+  total_collected: number
+  pending_payments: number
+  total_students: number
+  this_month_collection: number
+}
 
 export default function PaymentTrackingPage() {
   const router = useRouter()
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [stats, setStats] = useState<PaymentStats>({
+    total_collected: 0,
+    pending_payments: 0,
+    total_students: 0,
+    this_month_collection: 0
+  })
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [typeFilter, setTypeFilter] = useState("all")
 
-  const paymentData = [
-    {
-      id: 1,
-      studentName: "Hari Krishna. S",
-      course: "Kugnfu, Shilambam Zumba",
-      invoiceAmount: "₹18490",
-      paidAmount: "₹6490",
-      dueAmount: "₹12000",
-      paymentDate: "01 / 05 / 2025",
-      description: "Done by offline payment",
-      status: "Payment due",
-    },
-    {
-      id: 2,
-      studentName: "Hari Krishna. S",
-      course: "Kugnfu, Shilambam Zumba",
-      invoiceAmount: "₹18490",
-      paidAmount: "₹6490",
-      dueAmount: "₹12000",
-      paymentDate: "01 / 05 / 2025",
-      description: "Done by offline payment",
-      status: "No payment due",
-    },
-    {
-      id: 3,
-      studentName: "Hari Krishna. S",
-      course: "Kugnfu, Shilambam Zumba",
-      invoiceAmount: "₹18490",
-      paidAmount: "₹6490",
-      dueAmount: "₹12000",
-      paymentDate: "01 / 05 / 2025",
-      description: "Done by offline payment",
-      status: "Payment due",
-    },
-    {
-      id: 4,
-      studentName: "Hari Krishna. S",
-      course: "Kugnfu, Shilambam Zumba",
-      invoiceAmount: "₹18490",
-      paidAmount: "₹6490",
-      dueAmount: "₹12000",
-      paymentDate: "01 / 05 / 2025",
-      description: "Done by offline payment",
-      status: "No payment due",
-    },
-    {
-      id: 5,
-      studentName: "Hari Krishna. S",
-      course: "Kugnfu, Shilambam Zumba",
-      invoiceAmount: "₹18490",
-      paidAmount: "₹6490",
-      dueAmount: "₹12000",
-      paymentDate: "01 / 05 / 2025",
-      description: "Done by offline payment",
-      status: "No payment due",
-    },
-  ]
+  // Fetch payments and stats
+  useEffect(() => {
+    fetchPayments()
+    fetchStats()
+  }, [])
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/payments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setPayments(data.payments || [])
+      }
+    } catch (error) {
+      console.error('Error fetching payments:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/payments/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data)
+      }
+    } catch (error) {
+      console.error('Error fetching payment stats:', error)
+    }
+  }
+
+  // Filter payments
+  const filteredPayments = payments.filter(payment => {
+    const matchesSearch = payment.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         payment.transaction_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         payment.course_name?.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const matchesStatus = statusFilter === "all" || payment.payment_status === statusFilter
+    const matchesType = typeFilter === "all" || payment.payment_type === typeFilter
+
+    return matchesSearch && matchesStatus && matchesType
+  })
+
+  // Get status badge variant
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return <Badge variant="default" className="bg-green-500">Paid</Badge>
+      case 'pending':
+        return <Badge variant="secondary">Pending</Badge>
+      case 'overdue':
+        return <Badge variant="destructive">Overdue</Badge>
+      case 'cancelled':
+        return <Badge variant="outline">Cancelled</Badge>
+      default:
+        return <Badge variant="secondary">{status}</Badge>
+    }
+  }
+
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR'
+    }).format(amount)
+  }
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -262,39 +335,60 @@ export default function PaymentTrackingPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {paymentData.map((payment) => (
-                <tr key={payment.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.studentName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{payment.course}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.invoiceAmount}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.paidAmount}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.dueAmount}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{payment.paymentDate}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{payment.description}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge
-                      className={
-                        payment.status === "Payment due" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-                      }
-                    >
-                      {payment.status}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm" className="p-1">
-                        <Download className="w-4 h-4 text-gray-600" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="p-1">
-                        <MessageCircle className="w-4 h-4 text-green-600" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="p-1">
-                        <Mail className="w-4 h-4 text-blue-600" />
-                      </Button>
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-6 py-8 text-center">
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+                      <span className="ml-2 text-gray-500">Loading payments...</span>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : filteredPayments.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                    No payments found
+                  </td>
+                </tr>
+              ) : (
+                filteredPayments.map((payment) => (
+                  <tr key={payment.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{payment.student_name || 'Unknown Student'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{payment.course_name || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{payment.amount?.toLocaleString() || '0'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{payment.amount?.toLocaleString() || '0'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹0</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(payment.payment_date || payment.created_at)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{payment.payment_method || 'N/A'} - {payment.transaction_id || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge
+                        className={
+                          payment.payment_status === "paid"
+                            ? "bg-green-100 text-green-800"
+                            : payment.payment_status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }
+                      >
+                        {payment.payment_status === "paid" ? "Paid" : payment.payment_status === "pending" ? "Pending" : "Failed"}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-2">
+                        <Button variant="ghost" size="sm" className="p-1">
+                          <Download className="w-4 h-4 text-gray-600" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="p-1">
+                          <MessageCircle className="w-4 h-4 text-green-600" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="p-1">
+                          <Mail className="w-4 h-4 text-blue-600" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
