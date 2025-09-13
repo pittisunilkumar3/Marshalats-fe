@@ -87,6 +87,8 @@ export default function CoachDetailPage() {
   const [courseAssignments, setCourseAssignments] = useState<CourseAssignment[]>([])
   const [studentAssignments, setStudentAssignments] = useState<StudentAssignment[]>([])
   const [loading, setLoading] = useState(true)
+  const [coursesLoading, setCoursesLoading] = useState(true)
+  const [studentsLoading, setStudentsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -139,57 +141,76 @@ export default function CoachDetailPage() {
 
   const fetchCourseAssignments = async (token: string) => {
     try {
-      // Mock course assignments - in real app, this would be an API call
-      const mockCourses: CourseAssignment[] = [
-        {
-          id: 'course-1',
-          course_name: 'Karate Basics',
-          difficulty_level: 'Beginner',
-          enrolled_students: 15,
-          schedule: 'Mon, Wed, Fri 6:00 PM',
-          branch_name: 'Downtown Branch',
-          status: 'active'
-        },
-        {
-          id: 'course-2',
-          course_name: 'Advanced Self Defense',
-          difficulty_level: 'Advanced',
-          enrolled_students: 8,
-          schedule: 'Tue, Thu 7:00 PM',
-          branch_name: 'Downtown Branch',
-          status: 'active'
+      setCoursesLoading(true)
+      const response = await fetch(`http://localhost:8003/api/coaches/${coachId}/courses`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      ]
-      setCourseAssignments(mockCourses)
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const courses = data.courses || []
+
+        // Transform API response to match frontend interface
+        const transformedCourses: CourseAssignment[] = courses.map((course: any) => ({
+          id: course.id,
+          course_name: course.name || course.title || 'Unknown Course',
+          difficulty_level: course.difficulty_level || 'Beginner',
+          enrolled_students: course.enrolled_students || 0,
+          schedule: course.schedule || 'Schedule TBD',
+          branch_name: course.branch_assignments?.[0]?.branch_name || 'Unknown Branch',
+          status: 'active' as const
+        }))
+
+        setCourseAssignments(transformedCourses)
+      } else {
+        console.error('Failed to fetch course assignments:', response.status, response.statusText)
+        setError('Failed to load course assignments')
+      }
     } catch (err) {
       console.error('Error fetching course assignments:', err)
+      setError('Error loading course assignments')
+    } finally {
+      setCoursesLoading(false)
     }
   }
 
   const fetchStudentAssignments = async (token: string) => {
     try {
-      // Mock student assignments - in real app, this would be an API call
-      const mockStudents: StudentAssignment[] = [
-        {
-          id: 'student-1',
-          student_name: 'John Doe',
-          course_name: 'Karate Basics',
-          enrollment_date: '2024-01-15',
-          progress: 75,
-          status: 'active'
-        },
-        {
-          id: 'student-2',
-          student_name: 'Jane Smith',
-          course_name: 'Advanced Self Defense',
-          enrollment_date: '2024-02-01',
-          progress: 60,
-          status: 'active'
+      setStudentsLoading(true)
+      const response = await fetch(`http://localhost:8003/api/coaches/${coachId}/students`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      ]
-      setStudentAssignments(mockStudents)
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const students = data.students || []
+
+        // Transform API response to match frontend interface
+        const transformedStudents: StudentAssignment[] = students.map((student: any) => ({
+          id: student.id,
+          student_name: student.student_name || 'Unknown Student',
+          course_name: student.course_name || 'Unknown Course',
+          enrollment_date: student.enrollment_date || new Date().toISOString(),
+          progress: student.progress || 0,
+          status: student.status === 'active' ? 'active' as const : 'paused' as const
+        }))
+
+        setStudentAssignments(transformedStudents)
+      } else {
+        console.error('Failed to fetch student assignments:', response.status, response.statusText)
+        setError('Failed to load student assignments')
+      }
     } catch (err) {
       console.error('Error fetching student assignments:', err)
+      setError('Error loading student assignments')
+    } finally {
+      setStudentsLoading(false)
     }
   }
 
@@ -497,14 +518,28 @@ export default function CoachDetailPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <BookOpen className="w-5 h-5 mr-2" />
-                  Course Assignments ({courseAssignments.length})
+                  Course Assignments ({coursesLoading ? '...' : courseAssignments.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {courseAssignments.length === 0 ? (
+                {coursesLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="p-4 bg-gray-50 rounded-lg">
+                        <Skeleton className="h-6 w-3/4 mb-2" />
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-full" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : courseAssignments.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>No course assignments yet</p>
+                    <p>No courses assigned to this coach</p>
+                    <p className="text-sm mt-2">Course assignments will appear here once they are created.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -551,14 +586,29 @@ export default function CoachDetailPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Users className="w-5 h-5 mr-2" />
-                  Student Assignments ({studentAssignments.length})
+                  Student Assignments ({studentsLoading ? '...' : studentAssignments.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {studentAssignments.length === 0 ? (
+                {studentsLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-4 bg-gray-50 rounded-lg">
+                        <Skeleton className="h-6 w-3/4 mb-2" />
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-full" />
+                        </div>
+                        <Skeleton className="h-2 w-full mt-2" />
+                      </div>
+                    ))}
+                  </div>
+                ) : studentAssignments.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>No student assignments yet</p>
+                    <p>No students enrolled in this coach's courses</p>
+                    <p className="text-sm mt-2">Student enrollments will appear here once students join the courses.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
