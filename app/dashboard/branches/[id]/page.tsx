@@ -136,7 +136,7 @@ export default function BranchDetailPage() {
 
   const fetchBranchCourses = async (token: string) => {
     try {
-      const response = await fetch(`http://localhost:8003/courses?branch_id=${branchId}`, {
+      const response = await fetch(`http://localhost:8003/api/courses/by-branch/${branchId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -146,6 +146,8 @@ export default function BranchDetailPage() {
       if (response.ok) {
         const data = await response.json()
         setCourses(data.courses || [])
+      } else {
+        console.error('Failed to fetch branch courses:', response.status, response.statusText)
       }
     } catch (err) {
       console.error('Error fetching branch courses:', err)
