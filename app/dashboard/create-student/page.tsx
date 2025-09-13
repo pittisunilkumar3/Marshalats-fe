@@ -545,8 +545,9 @@ export default function CreateStudent() {
           setShowSuccessPopup(true)
         } else {
           const errorData = await response.json()
-        setErrors({ submit: errorData.message || 'Failed to create student. Please try again.' })
-        console.error('Student creation failed:', errorData)
+          setErrors({ submit: errorData.message || 'Failed to create student. Please try again.' })
+          console.error('Student creation failed:', errorData)
+        }
       }
     } catch (error) {
       console.error('Error creating student:', error)

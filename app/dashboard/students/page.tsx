@@ -334,6 +334,27 @@ export default function StudentList() {
     setSelectedCourses((prev) => (prev.includes(course) ? prev.filter((c) => c !== course) : [...prev, course]))
   }
 
+  // Enhanced search functionality - filter students based on search term
+  const filteredStudents = Array.isArray(students) ? students.filter((student) => {
+    if (!searchTerm) return true
+
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      student.full_name?.toLowerCase().includes(searchLower) ||
+      student.student_name?.toLowerCase().includes(searchLower) ||
+      student.id?.toLowerCase().includes(searchLower) ||
+      student.email?.toLowerCase().includes(searchLower) ||
+      student.phone?.toLowerCase().includes(searchLower) ||
+      student.gender?.toLowerCase().includes(searchLower) ||
+      student.branch_info?.branch_name?.toLowerCase().includes(searchLower) ||
+      student.courses?.some(course =>
+        course.course_name?.toLowerCase().includes(searchLower) ||
+        course.course_id?.toLowerCase().includes(searchLower)
+      ) ||
+      student.course_info?.course_id?.toLowerCase().includes(searchLower)
+    )
+  }) : []
+
   const availableCourses = ["Taekwondo", "Karate", "Kung Fu", "Mixed Martial Arts", "Zumba Dance", "Bharath Natyam"]
 
   return (
@@ -377,8 +398,12 @@ export default function StudentList() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-lg shadow border">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Total Students</p>
-                <p className="text-2xl font-bold text-blue-600">{students.length}</p>
+                <p className="text-sm text-gray-600 mb-1">
+                  {searchTerm ? `Filtered Students (${filteredStudents.length}/${students.length})` : 'Total Students'}
+                </p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {searchTerm ? filteredStudents.length : students.length}
+                </p>
               </div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow border">
@@ -466,21 +491,25 @@ export default function StudentList() {
                       </Button>
                     </td>
                   </tr>
-                ) : !Array.isArray(students) || students.length === 0 ? (
+                ) : filteredStudents.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-8 px-6 text-center text-gray-500">
-                      <div className="mb-2">No students found</div>
-                      <Button
-                        onClick={() => router.push("/dashboard/create-student")}
-                        className="bg-yellow-400 hover:bg-yellow-500 text-black"
-                        size="sm"
-                      >
-                        Add First Student
-                      </Button>
+                      <div className="mb-2">
+                        {searchTerm ? `No students found matching "${searchTerm}"` : 'No students found'}
+                      </div>
+                      {!searchTerm && (
+                        <Button
+                          onClick={() => router.push("/dashboard/create-student")}
+                          className="bg-yellow-400 hover:bg-yellow-500 text-black"
+                          size="sm"
+                        >
+                          Add First Student
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ) : (
-                  (Array.isArray(students) ? students : []).map((student) => (
+                  filteredStudents.map((student) => (
                     <tr key={student.id} className="border-b hover:bg-gray-50">
                       <td className="py-4 px-6">{student.full_name || student.student_name || 'N/A'}</td>
                       <td className="py-4 px-6 capitalize">{student.gender || 'N/A'}</td>

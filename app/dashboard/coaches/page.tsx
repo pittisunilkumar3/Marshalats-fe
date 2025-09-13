@@ -241,6 +241,24 @@ export default function CoachesListPage() {
     }
   }
 
+  // Enhanced search functionality - filter coaches based on search term
+  const filteredCoaches = coaches.filter((coach) => {
+    if (!searchTerm) return true
+
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      coach.full_name?.toLowerCase().includes(searchLower) ||
+      coach.id?.toLowerCase().includes(searchLower) ||
+      coach.contact_info?.email?.toLowerCase().includes(searchLower) ||
+      coach.contact_info?.phone?.toLowerCase().includes(searchLower) ||
+      coach.gender?.toLowerCase().includes(searchLower) ||
+      coach.designation?.toLowerCase().includes(searchLower) ||
+      coach.areas_of_expertise?.some(expertise =>
+        expertise.toLowerCase().includes(searchLower)
+      )
+    )
+  })
+
 
 
   return (
@@ -308,14 +326,14 @@ export default function CoachesListPage() {
                         Error: {error}
                       </td>
                     </tr>
-                  ) : coaches.length === 0 ? (
+                  ) : filteredCoaches.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="py-8 px-6 text-center text-gray-500">
-                        No coaches found
+                        {searchTerm ? `No coaches found matching "${searchTerm}"` : 'No coaches found'}
                       </td>
                     </tr>
                   ) : (
-                    coaches.map((coach) => (
+                    filteredCoaches.map((coach) => (
                       <tr key={coach.id} className="border-b hover:bg-gray-50">
                         <td className="py-4 px-6 text-blue-600">{coach.full_name}</td>
                         <td className="py-4 px-6 capitalize">{coach.personal_info.gender}</td>

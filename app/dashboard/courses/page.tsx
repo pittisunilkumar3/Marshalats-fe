@@ -93,7 +93,19 @@ export default function CourseListPage() {
 
   const branches = ["Madhapur", "Balaji Nagar", "Malkajgiri", "Yapral", "Tarnaka"]
 
-  const filteredCourses = courses.filter((course) => course.title.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Enhanced search functionality - search across multiple fields
+  const filteredCourses = courses.filter((course) => {
+    if (!searchTerm) return true
+
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      course.title?.toLowerCase().includes(searchLower) ||
+      course.id?.toLowerCase().includes(searchLower) ||
+      course.description?.toLowerCase().includes(searchLower) ||
+      course.difficulty_level?.toLowerCase().includes(searchLower) ||
+      course.category?.toLowerCase().includes(searchLower)
+    )
+  })
 
   const handleAssignClick = () => {
     setShowAssignPopup(true)

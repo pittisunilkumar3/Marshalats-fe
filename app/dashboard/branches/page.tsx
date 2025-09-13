@@ -60,9 +60,16 @@ export default function BranchesList() {
   const [branchToDelete, setBranchToDelete] = useState<string | null>(null)
   const [selectedBranch, setSelectedBranch] = useState("")
   const [selectedCoach, setSelectedCoach] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
   const [branches, setBranches] = useState<Branch[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Modal states
+  const [coaches, setCoaches] = useState<any[]>([])
+  const [loadingCoaches, setLoadingCoaches] = useState(false)
+  const [assignmentLoading, setAssignmentLoading] = useState(false)
+  const [assignmentError, setAssignmentError] = useState<string | null>(null)
 
   // Fetch branches from API
   useEffect(() => {
@@ -107,13 +114,102 @@ export default function BranchesList() {
     fetchBranches()
   }, [])
 
-  const handleAssign = () => {
-    if (selectedBranch && selectedCoach) {
-      // In a real implementation, this would call an API to assign the coach to the branch
-      console.log(`Assigning coach ${selectedCoach} to branch ${selectedBranch}`)
+  // Fetch coaches for assignment modal
+  const fetchCoaches = async () => {
+    try {
+      setLoadingCoaches(true)
+      setAssignmentError(null)
+
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches?active_only=true&limit=100`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || `Failed to fetch coaches (${response.status})`)
+      }
+
+      const data = await response.json()
+      console.log("Coaches fetched successfully:", data)
+
+      // Handle different response formats
+      const coachesData = data.coaches || data || []
+      setCoaches(coachesData)
+
+    } catch (error) {
+      console.error("Error fetching coaches:", error)
+      setAssignmentError(error instanceof Error ? error.message : 'Failed to fetch coaches')
+    } finally {
+      setLoadingCoaches(false)
+    }
+  }
+
+  const handleAssign = async () => {
+    if (!selectedBranch || !selectedCoach) {
+      setAssignmentError("Please select both a branch and a coach")
+      return
+    }
+
+    try {
+      setAssignmentLoading(true)
+      setAssignmentError(null)
+
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      // Update the branch with the new manager_id
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches/${selectedBranch}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          manager_id: selectedCoach
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || `Failed to assign manager (${response.status})`)
+      }
+
+      const responseData = await response.json()
+      console.log("Manager assigned successfully:", responseData)
+
+      // Update local state to reflect the change
+      setBranches(prevBranches =>
+        prevBranches.map(branch =>
+          branch.id === selectedBranch
+            ? { ...branch, manager_id: selectedCoach }
+            : branch
+        )
+      )
+
+      // Reset form and close modal
       setSelectedBranch("")
       setSelectedCoach("")
       setShowAssignPopup(false)
+
+      // Show success message
+      alert("Manager assigned successfully!")
+
+    } catch (error) {
+      console.error("Error assigning manager:", error)
+      setAssignmentError(error instanceof Error ? error.message : 'Failed to assign manager')
+    } finally {
+      setAssignmentLoading(false)
     }
   }
 
@@ -168,6 +264,30 @@ export default function BranchesList() {
     setBranchToDelete(null)
   }
 
+  const handleOpenAssignModal = () => {
+    setShowAssignPopup(true)
+    setAssignmentError(null)
+    setSelectedBranch("")
+    setSelectedCoach("")
+    fetchCoaches() // Fetch coaches when modal opens
+  }
+
+  // Enhanced search functionality - filter branches based on search term
+  const filteredBranches = branches.filter((branch) => {
+    if (!searchTerm) return true
+
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      branch.branch?.name?.toLowerCase().includes(searchLower) ||
+      branch.id?.toLowerCase().includes(searchLower) ||
+      branch.branch?.address?.street?.toLowerCase().includes(searchLower) ||
+      branch.branch?.address?.city?.toLowerCase().includes(searchLower) ||
+      branch.branch?.address?.state?.toLowerCase().includes(searchLower) ||
+      branch.branch?.email?.toLowerCase().includes(searchLower) ||
+      branch.branch?.phone?.toLowerCase().includes(searchLower)
+    )
+  })
+
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       <DashboardHeader currentPage="Branches" />
@@ -184,7 +304,7 @@ export default function BranchesList() {
             </Button>
             <Button
               className="bg-blue-500 hover:bg-blue-600 text-white px-6"
-              onClick={() => setShowAssignPopup(true)}
+              onClick={handleOpenAssignModal}
             >
               Assign Manager
             </Button>
@@ -192,7 +312,15 @@ export default function BranchesList() {
         </div>
 
         <div className="mb-6">
-          <Input placeholder="Search by name, ID, Location" className="max-w-sm" />
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search by name, ID, Location"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow overflow-x-auto">
@@ -247,14 +375,14 @@ export default function BranchesList() {
                     Error: {error}
                   </td>
                 </tr>
-              ) : branches.length === 0 ? (
+              ) : filteredBranches.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-8 px-6 text-center text-gray-500">
-                    No branches found
+                    {searchTerm ? `No branches found matching "${searchTerm}"` : 'No branches found'}
                   </td>
                 </tr>
               ) : (
-                branches.map((branch) => (
+                filteredBranches.map((branch) => (
                   <tr key={branch.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.id}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch.name}</td>
@@ -355,51 +483,110 @@ export default function BranchesList() {
       </main>
 
       {showAssignPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">Change Branch manager</h2>
-              <button onClick={() => setShowAssignPopup(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-6 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">Assign Branch Manager</h2>
+              <button
+                onClick={() => setShowAssignPopup(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={assignmentLoading}
+              >
+                <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="p-6 space-y-6">
+              {/* Error Display */}
+              {assignmentError && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                  <div className="flex">
+                    <div className="text-red-800 text-sm">
+                      {assignmentError}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Branch Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select branch</label>
-                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select branch" />
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Branch <span className="text-red-500">*</span>
+                </label>
+                <Select value={selectedBranch} onValueChange={setSelectedBranch} disabled={assignmentLoading}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose a branch to assign manager to" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Madhapur Branch">Madhapur</SelectItem>
-                    <SelectItem value="Hitech City Branch">Hitech City</SelectItem>
-                    <SelectItem value="Gachibowli Branch">Gachibowli</SelectItem>
+                    {filteredBranches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.branch.name} ({branch.id})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Coach Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Coach</label>
-                <Select value={selectedCoach} onValueChange={setSelectedCoach}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select coach" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Ravi chandran">Ravi chandran</SelectItem>
-                    <SelectItem value="Priya Sharma">Priya Sharma</SelectItem>
-                    <SelectItem value="Amit Kumar">Amit Kumar</SelectItem>
-                    <SelectItem value="Sneha Patel">Sneha Patel</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Coach as Manager <span className="text-red-500">*</span>
+                </label>
+                {loadingCoaches ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-gray-500">Loading coaches...</div>
+                  </div>
+                ) : (
+                  <Select value={selectedCoach} onValueChange={setSelectedCoach} disabled={assignmentLoading}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Choose a coach to assign as manager" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {coaches.length > 0 ? (
+                        coaches.map((coach) => (
+                          <SelectItem key={coach.id} value={coach.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{coach.full_name}</span>
+                              <span className="text-xs text-gray-500">
+                                {coach.contact_info?.email} • {coach.areas_of_expertise?.join(', ')}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>
+                          No active coaches available
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
+            </div>
 
+            {/* Modal Footer */}
+            <div className="flex justify-end space-x-3 p-6 border-t bg-gray-50">
+              <Button
+                onClick={() => setShowAssignPopup(false)}
+                variant="outline"
+                disabled={assignmentLoading}
+                className="px-6"
+              >
+                Cancel
+              </Button>
               <Button
                 onClick={handleAssign}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white mt-6"
-                disabled={!selectedBranch || !selectedCoach}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-6"
+                disabled={!selectedBranch || !selectedCoach || assignmentLoading || loadingCoaches}
               >
-                Assign Now
+                {assignmentLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Assigning...
+                  </>
+                ) : (
+                  'Assign Manager'
+                )}
               </Button>
             </div>
           </div>
