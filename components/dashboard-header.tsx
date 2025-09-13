@@ -259,14 +259,7 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
                         >
                           Payment Tracking
                         </button>
-                        <button
-                          onClick={() => handleMobileNavigation("/dashboard/operations")}
-                          className={`w-full text-left px-3 py-1 rounded-md hover:bg-gray-100 text-sm text-gray-600 ${
-                            isActivePath("/dashboard/operations") ? "bg-yellow-50 text-yellow-700" : ""
-                          }`}
-                        >
-                          Operations
-                        </button>
+
                       </div>
                     </div>
                   </nav>
@@ -370,9 +363,7 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
                   <DropdownMenuItem onClick={() => router.push("/dashboard/payment-tracking")}>
                     Payment Tracking
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/dashboard/operations")}>
-                    Operations
-                  </DropdownMenuItem>
+
                 </DropdownMenuContent>
               </DropdownMenu>
             </nav>

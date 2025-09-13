@@ -5,10 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search, Edit, Trash2, X, ToggleLeft, ToggleRight, ChevronDown, Eye } from "lucide-react"
+import { Search, Edit, Trash2, ToggleLeft, ToggleRight, ChevronDown, Eye } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import DashboardHeader from "@/components/dashboard-header"
@@ -42,10 +40,6 @@ interface Course {
 export default function CourseListPage() {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
-  const [showBranchDropdown, setShowBranchDropdown] = useState<number | null>(null)
-  const [showAssignPopup, setShowAssignPopup] = useState(false)
-  const [selectedBranch, setSelectedBranch] = useState("")
-  const [selectedCourses, setSelectedCourses] = useState<string[]>([])
   const [showDeletePopup, setShowDeletePopup] = useState(false)
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null)
   const [courses, setCourses] = useState<Course[]>([])
@@ -89,9 +83,7 @@ export default function CourseListPage() {
     fetchCourses()
   }, [])
 
-  const availableCourses = ["Taekwondo", "Karate", "Kung Fu", "Mixed Martial Arts", "Zumba Dance", "Bharath Natyam"]
 
-  const branches = ["Madhapur", "Balaji Nagar", "Malkajgiri", "Yapral", "Tarnaka"]
 
   // Enhanced search functionality - search across multiple fields
   const filteredCourses = courses.filter((course) => {
@@ -107,20 +99,7 @@ export default function CourseListPage() {
     )
   })
 
-  const handleAssignClick = () => {
-    setShowAssignPopup(true)
-    setSelectedBranch("")
-    setSelectedCourses(["Taekwondo", "Karate", "Kung Fu", "Mixed Martial Arts"]) // Pre-select as shown in design
-  }
 
-  const handleAssignNow = () => {
-    console.log("Assigning courses:", selectedCourses, "to branch:", selectedBranch)
-    setShowAssignPopup(false)
-  }
-
-  const handleCourseToggle = (course: string) => {
-    setSelectedCourses((prev) => (prev.includes(course) ? prev.filter((c) => c !== course) : [...prev, course]))
-  }
 
   const handleViewClick = (courseId: string) => {
     router.push(`/dashboard/courses/${courseId}`)
@@ -295,12 +274,7 @@ export default function CourseListPage() {
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center space-x-2">
-                          <Button
-                            className="bg-yellow-400 hover:bg-yellow-500 text-black text-sm"
-                            onClick={handleAssignClick}
-                          >
-                            Change/Assign course to Branch
-                          </Button>
+
                           <Button
                             variant="ghost"
                             size="sm"
@@ -351,64 +325,7 @@ export default function CourseListPage() {
         </Card>
       </main>
 
-      <Dialog open={showAssignPopup} onOpenChange={setShowAssignPopup}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              Assign course to branch
-              <Button variant="ghost" size="sm" onClick={() => setShowAssignPopup(false)} className="p-1 h-8 w-8">
-                <X className="w-4 h-4" />
-              </Button>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Select branch</label>
-              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Madhapur" />
-                </SelectTrigger>
-                <SelectContent>
-                  {branches.map((branch) => (
-                    <SelectItem key={branch} value={branch}>
-                      {branch}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Select course</label>
-              <Select value="Kick Boxing">
-                <SelectTrigger>
-                  <SelectValue placeholder="Kick Boxing" />
-                </SelectTrigger>
-                <SelectContent>
-                  <div className="p-2 space-y-2">
-                    {availableCourses.map((course) => (
-                      <div key={course} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={course}
-                          checked={selectedCourses.includes(course)}
-                          onCheckedChange={() => handleCourseToggle(course)}
-                        />
-                        <label htmlFor={course} className="text-sm cursor-pointer">
-                          {course}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button onClick={handleAssignNow} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
-              Assign Now
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showDeletePopup} onOpenChange={setShowDeletePopup}>
         <DialogContent className="sm:max-w-md">
