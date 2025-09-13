@@ -106,6 +106,8 @@ export default function StudentDetailPage() {
   const [paymentHistory, setPaymentHistory] = useState<PaymentRecord[]>([])
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [enrollmentsLoading, setEnrollmentsLoading] = useState(true)
+  const [paymentsLoading, setPaymentsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -197,74 +199,77 @@ export default function StudentDetailPage() {
 
   const fetchEnrollmentHistory = async (token: string) => {
     try {
-      // Use the student's courses data if available
-      if (student?.courses) {
-        const history = student.courses.map((course, index) => ({
-          id: `enrollment-${index}`,
-          course_name: course.course_name,
-          enrollment_date: course.enrollment_date,
-          completion_date: course.completion_date,
-          status: course.status,
-          progress: course.progress || 0,
-          grade: course.status === 'completed' ? 'A' : undefined
+      setEnrollmentsLoading(true)
+      const enrollmentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${studentId}/enrollments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (enrollmentResponse.ok) {
+        const enrollmentData = await enrollmentResponse.json()
+        const enrollments = enrollmentData.enrollments || []
+
+        // Transform API response to match frontend interface
+        const history: EnrollmentHistory[] = enrollments.map((enrollment: any) => ({
+          id: enrollment.id || `enrollment-${Date.now()}`,
+          course_name: enrollment.course_name || 'Unknown Course',
+          enrollment_date: enrollment.enrollment_date || enrollment.created_at || new Date().toISOString(),
+          completion_date: enrollment.completion_date,
+          status: enrollment.status || 'active',
+          progress: enrollment.progress || 0,
+          grade: enrollment.grade
         }))
+
         setEnrollmentHistory(history)
       } else {
-        // If no courses in student data, try to fetch from enrollments API
-        try {
-          const enrollmentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/enrollments?student_id=${studentId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          })
-
-          if (enrollmentResponse.ok) {
-            const enrollmentData = await enrollmentResponse.json()
-            const history = (enrollmentData.enrollments || []).map((enrollment: any, index: number) => ({
-              id: enrollment.id || `enrollment-${index}`,
-              course_name: enrollment.course_name || enrollment.course?.title || 'Unknown Course',
-              enrollment_date: enrollment.enrollment_date || enrollment.created_at,
-              completion_date: enrollment.completion_date,
-              status: enrollment.status || 'active',
-              progress: enrollment.progress || 0,
-              grade: enrollment.grade
-            }))
-            setEnrollmentHistory(history)
-          }
-        } catch (enrollmentError) {
-          console.error('Error fetching enrollment data:', enrollmentError)
-        }
+        console.error('Failed to fetch enrollment history:', enrollmentResponse.status, enrollmentResponse.statusText)
+        setError('Failed to load enrollment history')
       }
     } catch (err) {
       console.error('Error fetching enrollment history:', err)
+      setError('Error loading enrollment history')
+    } finally {
+      setEnrollmentsLoading(false)
     }
   }
 
   const fetchPaymentHistory = async (token: string) => {
     try {
-      // Mock payment data - in real app, this would be an API call
-      const mockPayments: PaymentRecord[] = [
-        {
-          id: 'payment-1',
-          amount: 5000,
-          payment_date: '2024-01-15',
-          payment_method: 'Credit Card',
-          status: 'completed',
-          description: 'Course enrollment fee'
-        },
-        {
-          id: 'payment-2',
-          amount: 3000,
-          payment_date: '2024-02-15',
-          payment_method: 'Bank Transfer',
-          status: 'completed',
-          description: 'Monthly fee'
+      setPaymentsLoading(true)
+      const paymentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${studentId}/payments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      ]
-      setPaymentHistory(mockPayments)
+      })
+
+      if (paymentResponse.ok) {
+        const paymentData = await paymentResponse.json()
+        const payments = paymentData.payments || []
+
+        // Transform API response to match frontend interface
+        const history: PaymentRecord[] = payments.map((payment: any) => ({
+          id: payment.id || `payment-${Date.now()}`,
+          amount: payment.amount || 0,
+          payment_date: payment.payment_date || payment.created_at || new Date().toISOString(),
+          payment_method: payment.payment_method || 'Unknown',
+          status: payment.payment_status === 'paid' ? 'completed' as const :
+                  payment.payment_status === 'pending' ? 'pending' as const : 'failed' as const,
+          description: payment.description || `${payment.course_name || 'Course'} - ${payment.payment_type || 'Payment'}`
+        }))
+
+        setPaymentHistory(history)
+      } else {
+        console.error('Failed to fetch payment history:', paymentResponse.status, paymentResponse.statusText)
+        setError('Failed to load payment history')
+      }
     } catch (err) {
       console.error('Error fetching payment history:', err)
+      setError('Error loading payment history')
+    } finally {
+      setPaymentsLoading(false)
     }
   }
 
@@ -592,21 +597,39 @@ export default function StudentDetailPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <BookOpen className="w-5 h-5 mr-2" />
-                  Course Enrollment History
+                  Course Enrollment History ({enrollmentsLoading ? '...' : enrollmentHistory.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {enrollmentHistory.length === 0 ? (
+                {enrollmentsLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-4 bg-gray-50 rounded-lg">
+                        <Skeleton className="h-6 w-3/4 mb-2" />
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-full" />
+                        </div>
+                        <Skeleton className="h-2 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                ) : enrollmentHistory.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                     <p>No course enrollment history available</p>
+                    <p className="text-sm mt-2">Course enrollments will appear here once the student enrolls in courses.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {enrollmentHistory.map((enrollment) => (
-                      <div key={enrollment.id} className="p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-gray-900">{enrollment.course_name}</h4>
+                      <div key={enrollment.id} className="p-4 bg-gray-50 rounded-lg border-l-4 border-l-green-500">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <BookOpen className="w-5 h-5 text-green-600" />
+                            <h4 className="font-semibold text-gray-900">{enrollment.course_name}</h4>
+                          </div>
                           <div className="flex items-center space-x-2">
                             {getStatusIcon(enrollment.status)}
                             <Badge
@@ -618,36 +641,51 @@ export default function StudentDetailPage() {
                                 'bg-red-100 text-red-800'
                               }`}
                             >
-                              {enrollment.status}
+                              {enrollment.status.charAt(0).toUpperCase() + enrollment.status.slice(1)}
                             </Badge>
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-3">
-                          <div>
-                            <span className="font-medium">Enrolled:</span> {' '}
-                            {new Date(enrollment.enrollment_date).toLocaleDateString()}
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="w-4 h-4" />
+                            <span className="font-medium">Enrolled:</span>
+                            <span>{new Date(enrollment.enrollment_date).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}</span>
                           </div>
                           {enrollment.completion_date && (
-                            <div>
-                              <span className="font-medium">Completed:</span> {' '}
-                              {new Date(enrollment.completion_date).toLocaleDateString()}
+                            <div className="flex items-center space-x-1">
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <span className="font-medium">Completed:</span>
+                              <span>{new Date(enrollment.completion_date).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })}</span>
                             </div>
                           )}
                           {enrollment.grade && (
-                            <div>
-                              <span className="font-medium">Grade:</span> {enrollment.grade}
+                            <div className="flex items-center space-x-1">
+                              <Award className="w-4 h-4 text-yellow-600" />
+                              <span className="font-medium">Grade:</span>
+                              <span className="font-semibold">{enrollment.grade}</span>
                             </div>
                           )}
                         </div>
 
-                        {enrollment.progress > 0 && (
-                          <div>
-                            <div className="flex items-center justify-between text-sm mb-1">
-                              <span className="text-gray-600">Progress</span>
-                              <span className="font-medium">{enrollment.progress}%</span>
+                        {enrollment.progress >= 0 && (
+                          <div className="mt-3">
+                            <div className="flex items-center justify-between text-sm mb-2">
+                              <span className="text-gray-600 flex items-center">
+                                <TrendingUp className="w-4 h-4 mr-1" />
+                                Course Progress
+                              </span>
+                              <span className="font-semibold text-blue-600">{enrollment.progress}%</span>
                             </div>
-                            <Progress value={enrollment.progress} className="h-2" />
+                            <Progress value={enrollment.progress} className="h-3" />
                           </div>
                         )}
                       </div>
@@ -769,21 +807,40 @@ export default function StudentDetailPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <CreditCard className="w-5 h-5 mr-2" />
-                  Recent Payments
+                  Payment History ({paymentsLoading ? '...' : paymentHistory.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {paymentHistory.length === 0 ? (
+                {paymentsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-1">
+                          <Skeleton className="h-5 w-20" />
+                          <Skeleton className="h-5 w-16" />
+                        </div>
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-4 w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : paymentHistory.length === 0 ? (
                   <div className="text-center py-6 text-gray-500">
                     <CreditCard className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">No payment history</p>
+                    <p className="text-sm">No payment history available</p>
+                    <p className="text-xs mt-1">Payment transactions will appear here once payments are made.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {paymentHistory.slice(0, 5).map((payment) => (
-                      <div key={payment.id} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-gray-900">₹{payment.amount.toLocaleString()}</span>
+                    {paymentHistory.slice(0, 10).map((payment) => (
+                      <div key={payment.id} className="p-4 bg-gray-50 rounded-lg border-l-4 border-l-blue-500">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <CreditCard className="w-4 h-4 text-blue-600" />
+                            <span className="font-semibold text-gray-900">₹{payment.amount.toLocaleString()}</span>
+                          </div>
                           <Badge
                             variant="secondary"
                             className={`text-xs ${
@@ -795,14 +852,36 @@ export default function StudentDetailPage() {
                             {payment.status}
                           </Badge>
                         </div>
-                        <div className="text-sm text-gray-600">
-                          <p>{payment.description}</p>
-                          <p className="mt-1">
-                            {new Date(payment.payment_date).toLocaleDateString()} • {payment.payment_method}
-                          </p>
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <p className="font-medium text-gray-800">{payment.description}</p>
+                          <div className="flex items-center justify-between">
+                            <span>
+                              📅 {new Date(payment.payment_date).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </span>
+                            <span>💳 {payment.payment_method}</span>
+                          </div>
                         </div>
                       </div>
                     ))}
+                    {paymentHistory.length > 10 && (
+                      <div className="text-center pt-2">
+                        <p className="text-sm text-gray-500">
+                          ... and {paymentHistory.length - 10} more payments
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => router.push(`/dashboard/payments?student_id=${studentId}`)}
+                        >
+                          View All Payments
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
