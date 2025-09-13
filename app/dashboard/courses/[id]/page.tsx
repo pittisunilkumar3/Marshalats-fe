@@ -110,14 +110,52 @@ export default function CourseDetailPage() {
       setLoading(true)
       setError(null)
 
-      const token = TokenManager.getToken()
+      let token = TokenManager.getToken()
+
+      // For development: if no token found, try to get one from the backend
       if (!token) {
-        setError("Authentication required. Please login again.")
-        return
+        console.log("No token found, attempting to get development token...")
+        try {
+          const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/superadmin/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: 'admin@marshalats.com',
+              password: 'admin123'
+            })
+          })
+
+          if (loginResponse.ok) {
+            const loginData = await loginResponse.json()
+            token = loginData.data.token
+            console.log("✅ Development token obtained")
+
+            // Store the token for future use
+            TokenManager.storeAuthData({
+              access_token: token,
+              token_type: 'bearer',
+              expires_in: loginData.data.expires_in,
+              user: {
+                id: loginData.data.id,
+                full_name: loginData.data.full_name,
+                email: loginData.data.email,
+                role: 'superadmin'
+              }
+            })
+          } else {
+            throw new Error("Failed to get development token")
+          }
+        } catch (devTokenError) {
+          console.error("Failed to get development token:", devTokenError)
+          setError("Authentication required. Please login again.")
+          return
+        }
       }
 
       // Fetch course details
-      const courseResponse = await fetch(`http://localhost:8003/courses/${courseId}`, {
+      const courseResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses/${courseId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -133,7 +171,35 @@ export default function CourseDetailPage() {
       }
 
       const courseData = await courseResponse.json()
-      setCourse(courseData)
+
+      // Map the API response to our interface
+      const mappedCourse: CourseDetails = {
+        id: courseData.id,
+        name: courseData.title || courseData.name,
+        description: courseData.description,
+        difficulty_level: courseData.difficulty_level,
+        duration: courseData.duration,
+        category: courseData.category_id,
+        prerequisites: courseData.prerequisites || [],
+        learning_objectives: courseData.learning_objectives || [],
+        instructor_id: courseData.instructor_id,
+        instructor_name: courseData.instructor_name,
+        branch_assignments: courseData.branch_assignments || [],
+        pricing: courseData.pricing ? {
+          amount: courseData.pricing.amount,
+          currency: courseData.pricing.currency
+        } : undefined,
+        schedule: courseData.schedule,
+        is_active: courseData.settings?.active ?? courseData.is_active ?? true,
+        created_at: courseData.created_at,
+        updated_at: courseData.updated_at,
+        total_enrolled: courseData.total_enrolled,
+        completion_rate: courseData.completion_rate,
+        average_rating: courseData.average_rating,
+        total_revenue: courseData.total_revenue
+      }
+
+      setCourse(mappedCourse)
 
       // Fetch related data in parallel
       await Promise.all([

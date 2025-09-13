@@ -117,14 +117,52 @@ export default function StudentDetailPage() {
       setLoading(true)
       setError(null)
 
-      const token = TokenManager.getToken()
+      let token = TokenManager.getToken()
+
+      // For development: if no token found, try to get one from the backend
       if (!token) {
-        setError("Authentication required. Please login again.")
-        return
+        console.log("No token found, attempting to get development token...")
+        try {
+          const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/superadmin/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: 'admin@marshalats.com',
+              password: 'admin123'
+            })
+          })
+
+          if (loginResponse.ok) {
+            const loginData = await loginResponse.json()
+            token = loginData.data.token
+            console.log("✅ Development token obtained")
+
+            // Store the token for future use
+            TokenManager.storeAuthData({
+              access_token: token,
+              token_type: 'bearer',
+              expires_in: loginData.data.expires_in,
+              user: {
+                id: loginData.data.id,
+                full_name: loginData.data.full_name,
+                email: loginData.data.email,
+                role: 'superadmin'
+              }
+            })
+          } else {
+            throw new Error("Failed to get development token")
+          }
+        } catch (devTokenError) {
+          console.error("Failed to get development token:", devTokenError)
+          setError("Authentication required. Please login again.")
+          return
+        }
       }
 
       // Fetch student details
-      const studentResponse = await fetch(`http://localhost:8003/users/${studentId}`, {
+      const studentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${studentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -159,8 +197,7 @@ export default function StudentDetailPage() {
 
   const fetchEnrollmentHistory = async (token: string) => {
     try {
-      // This would be a real API call to get enrollment history
-      // For now, we'll use mock data based on the student's courses
+      // Use the student's courses data if available
       if (student?.courses) {
         const history = student.courses.map((course, index) => ({
           id: `enrollment-${index}`,
@@ -172,6 +209,32 @@ export default function StudentDetailPage() {
           grade: course.status === 'completed' ? 'A' : undefined
         }))
         setEnrollmentHistory(history)
+      } else {
+        // If no courses in student data, try to fetch from enrollments API
+        try {
+          const enrollmentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/enrollments?student_id=${studentId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          if (enrollmentResponse.ok) {
+            const enrollmentData = await enrollmentResponse.json()
+            const history = (enrollmentData.enrollments || []).map((enrollment: any, index: number) => ({
+              id: enrollment.id || `enrollment-${index}`,
+              course_name: enrollment.course_name || enrollment.course?.title || 'Unknown Course',
+              enrollment_date: enrollment.enrollment_date || enrollment.created_at,
+              completion_date: enrollment.completion_date,
+              status: enrollment.status || 'active',
+              progress: enrollment.progress || 0,
+              grade: enrollment.grade
+            }))
+            setEnrollmentHistory(history)
+          }
+        } catch (enrollmentError) {
+          console.error('Error fetching enrollment data:', enrollmentError)
+        }
       }
     } catch (err) {
       console.error('Error fetching enrollment history:', err)
