@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { notificationAPI, PaymentNotification } from "@/lib/notificationAPI"
+import { useRouter } from "next/navigation"
 
 interface NotificationDropdownProps {
   className?: string
 }
 
 export default function NotificationDropdown({ className = "" }: NotificationDropdownProps) {
+  const router = useRouter()
   const [notifications, setNotifications] = useState<PaymentNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
@@ -60,14 +62,44 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
 
   // Format time ago
   const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-    
-    if (diffInMinutes < 1) return 'Just now'
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
-    return `${Math.floor(diffInMinutes / 1440)}d ago`
+    try {
+      const date = new Date(dateString)
+      const now = new Date()
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Unknown time'
+      }
+
+      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+
+      // Handle future dates (shouldn't happen but just in case)
+      if (diffInMinutes < 0) {
+        return 'Just now'
+      }
+
+      if (diffInMinutes < 1) return 'Just now'
+      if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+
+      const diffInHours = Math.floor(diffInMinutes / 60)
+      if (diffInHours < 24) return `${diffInHours}h ago`
+
+      const diffInDays = Math.floor(diffInHours / 24)
+      if (diffInDays < 7) return `${diffInDays}d ago`
+
+      const diffInWeeks = Math.floor(diffInDays / 7)
+      if (diffInWeeks < 4) return `${diffInWeeks}w ago`
+
+      // For older notifications, show the actual date
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+      })
+    } catch (error) {
+      console.error('Error formatting date:', error)
+      return 'Unknown time'
+    }
   }
 
   // Get notification icon
@@ -185,7 +217,13 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
         {notifications.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="px-4 py-2 text-center text-sm text-blue-600 hover:text-blue-800">
+            <DropdownMenuItem
+              className="px-4 py-2 text-center text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
+              onClick={() => {
+                setIsOpen(false)
+                router.push('/dashboard/notifications')
+              }}
+            >
               View all notifications
             </DropdownMenuItem>
           </>

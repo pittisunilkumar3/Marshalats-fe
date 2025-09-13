@@ -221,14 +221,7 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
                       >
                         Courses
                       </button>
-                      <button
-                        onClick={() => handleMobileNavigation("/dashboard/courses/assign/students")}
-                        className={`w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm ${
-                          isActivePath("/dashboard/courses/assign") ? "bg-yellow-50 text-yellow-700" : ""
-                        }`}
-                      >
-                        Assign Courses
-                      </button>
+
                       <div className="px-3 py-2">
                         <p className="text-sm font-medium text-gray-500 mb-2">Attendance</p>
                         <button
@@ -333,16 +326,7 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
               >
                 Courses
               </button>
-              <button
-                onClick={() => router.push("/dashboard/courses/assign/students")}
-                className={`pb-4 text-sm whitespace-nowrap cursor-pointer border-b-2 ${
-                  isActivePath("/dashboard/courses/assign")
-                    ? "text-gray-900 border-yellow-400"
-                    : "text-gray-600 hover:text-gray-900 border-transparent"
-                }`}
-              >
-                Assign Courses
-              </button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className={`pb-4 text-sm whitespace-nowrap flex items-center cursor-pointer border-b-2 ${

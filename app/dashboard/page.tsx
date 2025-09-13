@@ -11,6 +11,7 @@ import DashboardHeader from "@/components/dashboard-header"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { dashboardAPI, DashboardStats, Coach } from "@/lib/api"
+import { paymentAPI, PaymentStats, Payment } from "@/lib/paymentAPI"
 import { TokenManager } from "@/lib/tokenManager"
 
 export default function SuperAdminDashboard() {
@@ -23,6 +24,12 @@ export default function SuperAdminDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [coachesLoading, setCoachesLoading] = useState(true)
   const [coachesError, setCoachesError] = useState<string | null>(null)
+
+  // Payment data state
+  const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null)
+  const [recentPayments, setRecentPayments] = useState<Payment[]>([])
+  const [paymentsLoading, setPaymentsLoading] = useState(true)
+  const [paymentsError, setPaymentsError] = useState<string | null>(null)
 
   // Fetch dashboard statistics
   useEffect(() => {
@@ -77,7 +84,36 @@ export default function SuperAdminDashboard() {
     }
 
     fetchCoaches()
+    fetchPaymentData()
   }, [])
+
+  // Fetch payment data
+  const fetchPaymentData = async () => {
+    try {
+      setPaymentsLoading(true)
+      setPaymentsError(null)
+
+      const token = TokenManager.getToken()
+      if (!token) {
+        setPaymentsError("Authentication required. Please login again.")
+        return
+      }
+
+      // Fetch payment stats and recent payments in parallel
+      const [statsResponse, paymentsResponse] = await Promise.all([
+        paymentAPI.getPaymentStats(token),
+        paymentAPI.getRecentPayments(5, token)
+      ])
+
+      setPaymentStats(statsResponse)
+      setRecentPayments(paymentsResponse)
+    } catch (err: any) {
+      console.error("Error fetching payment data:", err)
+      setPaymentsError(err.message || "Failed to fetch payment data")
+    } finally {
+      setPaymentsLoading(false)
+    }
+  }
 
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -106,7 +142,6 @@ export default function SuperAdminDashboard() {
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <div className="flex flex-wrap gap-2 lg:gap-3">
-            <Button className="bg-yellow-400 hover:bg-yellow-500 text-black text-sm">Assign</Button>
             <Button
               variant="outline"
               className="flex items-center space-x-2 bg-transparent text-sm"
@@ -182,7 +217,7 @@ export default function SuperAdminDashboard() {
                     <div>
                       <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
                       <p className="text-2xl font-bold">
-                        {dashboardStats ? formatCurrency(dashboardStats.monthly_revenue) : '$0'}
+                        {paymentStats ? paymentAPI.formatCurrency(paymentStats.this_month_collection || 0) : '₹0'}
                       </p>
                       <p className="text-xs text-gray-500">Earning this month</p>
                     </div>
@@ -287,8 +322,49 @@ export default function SuperAdminDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-64 flex items-center justify-center bg-gray-50 rounded">
-                <p className="text-gray-500">Revenue Chart Placeholder</p>
+              <div className="h-64">
+                {paymentsLoading ? (
+                  <div className="h-full flex items-center justify-center bg-gray-50 rounded">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+                      <p className="text-gray-500 text-sm">Loading revenue data...</p>
+                    </div>
+                  </div>
+                ) : paymentsError ? (
+                  <div className="h-full flex items-center justify-center bg-gray-50 rounded">
+                    <div className="text-center text-red-600">
+                      <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+                      <p className="text-sm">Failed to load revenue data</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center bg-gray-50 rounded">
+                    <div className="text-center">
+                      <div className="mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900">Revenue Overview</h3>
+                        <p className="text-sm text-gray-600">Monthly Performance</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-center">
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-2xl font-bold text-green-600">
+                            {paymentStats ? paymentAPI.formatCurrency(paymentStats.this_month_collection || 0) : '₹0'}
+                          </p>
+                          <p className="text-xs text-gray-500">This Month</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-2xl font-bold text-blue-600">
+                            {paymentStats ? paymentAPI.formatCurrency(paymentStats.total_collected || 0) : '₹0'}
+                          </p>
+                          <p className="text-xs text-gray-500">Total Revenue</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 text-sm text-gray-500">
+                        <p>Payments: {recentPayments?.length || 0} transactions</p>
+                        <p>Students: {paymentStats?.total_students || 0} enrolled</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -514,29 +590,56 @@ export default function SuperAdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[
-                  { id: "RMA00A132", date: "25/04/2025", amount: "₹3500", type: "Cash" },
-                  { id: "RMA00K084", date: "25/04/2025", amount: "₹4500", type: "Online" },
-                  { id: "RMA06289", date: "25/04/2025", amount: "₹2300", type: "Online" },
-                  { id: "RMA00C34", date: "25/04/2025", amount: "₹5500", type: "Online" },
-                  { id: "RMA00A132", date: "25/04/2025", amount: "₹2900", type: "Cash" },
-                ].map((payment, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium text-sm">{payment.id}</p>
-                      <p className="text-xs text-gray-500">{payment.date}</p>
+                {paymentsLoading ? (
+                  // Loading state for payments
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <div className="space-y-1">
+                        <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                        <div className="h-3 w-16 bg-gray-200 rounded animate-pulse"></div>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <div className="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
+                        <div className="h-5 w-12 bg-gray-200 rounded animate-pulse"></div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium text-sm">{payment.amount}</p>
-                      <Badge
-                        variant={payment.type === "Cash" ? "secondary" : "default"}
-                        className={payment.type === "Cash" ? "bg-gray-100" : "bg-blue-100 text-blue-800"}
-                      >
-                        {payment.type}
-                      </Badge>
-                    </div>
+                  ))
+                ) : paymentsError ? (
+                  // Error state for payments
+                  <div className="flex items-center justify-center space-x-2 text-red-600 py-4">
+                    <AlertCircle className="w-5 h-5" />
+                    <span className="text-sm">{paymentsError}</span>
                   </div>
-                ))}
+                ) : recentPayments.length === 0 ? (
+                  // No payments found
+                  <div className="text-center py-4 text-gray-500">
+                    <p className="text-sm">No recent payments found</p>
+                  </div>
+                ) : (
+                  // Display real payments
+                  recentPayments.map((payment) => (
+                    <div key={payment.id} className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium text-sm">{payment.transaction_id || payment.id.slice(0, 10)}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(payment.payment_date || payment.created_at).toLocaleDateString()}
+                        </p>
+                        {payment.student_name && (
+                          <p className="text-xs text-gray-400">{payment.student_name}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-sm">{paymentAPI.formatCurrency(payment.amount)}</p>
+                        <Badge
+                          variant={payment.payment_method === "cash" ? "secondary" : "default"}
+                          className={payment.payment_method === "cash" ? "bg-gray-100" : "bg-blue-100 text-blue-800"}
+                        >
+                          {paymentAPI.formatPaymentMethod(payment.payment_method)}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

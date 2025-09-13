@@ -68,7 +68,7 @@ export default function SuperAdminProfilePage() {
         return
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/superadmin/me`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/superadmin/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -146,7 +146,7 @@ export default function SuperAdminProfilePage() {
         return
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/superadmin/me`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/superadmin/me`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -444,23 +444,7 @@ export default function SuperAdminProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Security Notice */}
-          {isEditing && (
-            <Card className="border-yellow-200 bg-yellow-50">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-3">
-                  <Shield className="w-5 h-5 text-yellow-600 mt-0.5" />
-                  <div>
-                    <h4 className="text-sm font-medium text-yellow-800">Security Notice</h4>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      Profile update functionality is currently not available as it requires backend implementation
-                      of the PUT /superadmin/me endpoint. Contact your system administrator for profile updates.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+
         </div>
       </main>
     </div>
