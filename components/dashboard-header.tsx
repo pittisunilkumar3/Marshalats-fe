@@ -141,7 +141,7 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
   };
 
   return (
-    <header className="bg-white shadow-sm border-b">
+    <header className="bg-white shadow-lg border-b border-gray-200/80 backdrop-blur-sm">
       <div className="w-full px-4 lg:px-6">
         <div className="flex justify-between items-center h-16">
           {/* Logo and Navigation */}
@@ -152,62 +152,70 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
                 alt="Logo"
                 className="w-8 h-8"
               />
-              <span className="font-bold text-xl hidden lg:inline">Rock</span>
+              <span className="font-bold text-xl text-gray-900 hidden lg:inline tracking-tight">Rock</span>
             </div>
 
             {/* Mobile Menu Button */}
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="lg:hidden"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="lg:hidden hover:bg-gray-100/80 transition-colors duration-200 rounded-lg"
                 >
-                  <Menu className="w-5 h-5" />
+                  <Menu className="w-5 h-5 text-gray-700" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0">
+              <SheetContent side="left" className="w-64 p-0 bg-white/95 backdrop-blur-md border-r border-gray-200/50">
                 <div className="flex flex-col h-full">
-                  <div className="p-4 border-b">
+                  <div className="p-4 border-b border-gray-200/60">
                     <div className="flex items-center space-x-3">
                       <img
                         src="/placeholder-logo.svg"
                         alt="Logo"
                         className="w-8 h-8"
                       />
-                      <span className="font-bold text-xl">Rock</span>
+                      <span className="font-bold text-xl text-gray-900 tracking-tight">Rock</span>
                     </div>
                   </div>
-                  <nav className="flex-1 p-4">
-                    <div className="space-y-2">
+                  <nav className="flex-1 p-6">
+                    <div className="space-y-3">
                       <button
                         onClick={() => handleMobileNavigation("/dashboard")}
-                        className={`w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm font-medium ${
-                          isActivePath("/dashboard") && pathname === "/dashboard" ? "bg-yellow-50 text-yellow-700" : ""
+                        className={`w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100/80 text-sm font-medium transition-all duration-200 ${
+                          isActivePath("/dashboard") && pathname === "/dashboard"
+                            ? "bg-gradient-to-r from-yellow-50 to-yellow-100/50 text-yellow-800 border-l-3 border-yellow-400 shadow-sm"
+                            : "text-gray-700 hover:text-gray-900"
                         }`}
                       >
                         Dashboard
                       </button>
                       <button
                         onClick={() => handleMobileNavigation("/dashboard/branches")}
-                        className={`w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm ${
-                          isActivePath("/dashboard/branches") ? "bg-yellow-50 text-yellow-700" : ""
+                        className={`w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100/80 text-sm font-medium transition-all duration-200 ${
+                          isActivePath("/dashboard/branches")
+                            ? "bg-gradient-to-r from-yellow-50 to-yellow-100/50 text-yellow-800 border-l-3 border-yellow-400 shadow-sm"
+                            : "text-gray-700 hover:text-gray-900"
                         }`}
                       >
                         Branches
                       </button>
                       <button
                         onClick={() => handleMobileNavigation("/dashboard/coaches")}
-                        className={`w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm ${
-                          isActivePath("/dashboard/coaches") ? "bg-yellow-50 text-yellow-700" : ""
+                        className={`w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100/80 text-sm font-medium transition-all duration-200 ${
+                          isActivePath("/dashboard/coaches")
+                            ? "bg-gradient-to-r from-yellow-50 to-yellow-100/50 text-yellow-800 border-l-3 border-yellow-400 shadow-sm"
+                            : "text-gray-700 hover:text-gray-900"
                         }`}
                       >
                         Masters
                       </button>
                       <button
                         onClick={() => handleMobileNavigation("/dashboard/students")}
-                        className={`w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm ${
-                          isActivePath("/dashboard/students") ? "bg-yellow-50 text-yellow-700" : ""
+                        className={`w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100/80 text-sm font-medium transition-all duration-200 ${
+                          isActivePath("/dashboard/students")
+                            ? "bg-gradient-to-r from-yellow-50 to-yellow-100/50 text-yellow-800 border-l-3 border-yellow-400 shadow-sm"
+                            : "text-gray-700 hover:text-gray-900"
                         }`}
                       >
                         Students
@@ -215,8 +223,10 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
 
                       <button
                         onClick={() => handleMobileNavigation("/dashboard/courses")}
-                        className={`w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm ${
-                          isActivePath("/dashboard/courses") ? "bg-yellow-50 text-yellow-700" : ""
+                        className={`w-full text-left px-4 py-3 rounded-lg hover:bg-gray-100/80 text-sm font-medium transition-all duration-200 ${
+                          isActivePath("/dashboard/courses")
+                            ? "bg-gradient-to-r from-yellow-50 to-yellow-100/50 text-yellow-800 border-l-3 border-yellow-400 shadow-sm"
+                            : "text-gray-700 hover:text-gray-900"
                         }`}
                       >
                         Courses
@@ -267,43 +277,43 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
               </SheetContent>
             </Sheet>
 
-            <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6 overflow-x-auto">
+            <nav className="hidden lg:flex items-center space-x-6 xl:space-x-8">
               <button
                 onClick={() => router.push("/dashboard")}
-                className={`pb-4 text-sm font-medium whitespace-nowrap cursor-pointer border-b-2 ${
-                  pathname === "/dashboard" 
-                    ? "text-gray-900 border-yellow-400" 
-                    : "text-gray-600 hover:text-gray-900 border-transparent"
+                className={`pb-4 px-1 text-sm font-semibold whitespace-nowrap cursor-pointer border-b-2 transition-all duration-300 hover:scale-105 ${
+                  pathname === "/dashboard"
+                    ? "text-gray-900 border-yellow-400 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900 border-transparent hover:border-gray-300"
                 }`}
               >
                 Dashboard
               </button>
-              <button 
+              <button
                 onClick={() => router.push("/dashboard/branches")}
-                className={`pb-4 text-sm whitespace-nowrap cursor-pointer border-b-2 ${
-                  isActivePath("/dashboard/branches") 
-                    ? "text-gray-900 border-yellow-400" 
-                    : "text-gray-600 hover:text-gray-900 border-transparent"
+                className={`pb-4 px-1 text-sm font-semibold whitespace-nowrap cursor-pointer border-b-2 transition-all duration-300 hover:scale-105 ${
+                  isActivePath("/dashboard/branches")
+                    ? "text-gray-900 border-yellow-400 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900 border-transparent hover:border-gray-300"
                 }`}
               >
                 Branches
               </button>
-              <button 
+              <button
                 onClick={() => router.push("/dashboard/coaches")}
-                className={`pb-4 text-sm whitespace-nowrap cursor-pointer border-b-2 ${
-                  isActivePath("/dashboard/coaches") 
-                    ? "text-gray-900 border-yellow-400" 
-                    : "text-gray-600 hover:text-gray-900 border-transparent"
+                className={`pb-4 px-1 text-sm font-semibold whitespace-nowrap cursor-pointer border-b-2 transition-all duration-300 hover:scale-105 ${
+                  isActivePath("/dashboard/coaches")
+                    ? "text-gray-900 border-yellow-400 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900 border-transparent hover:border-gray-300"
                 }`}
               >
                 Masters
               </button>
-              <button 
+              <button
                 onClick={() => router.push("/dashboard/students")}
-                className={`pb-4 text-sm whitespace-nowrap cursor-pointer border-b-2 ${
-                  isActivePath("/dashboard/students") 
-                    ? "text-gray-900 border-yellow-400" 
-                    : "text-gray-600 hover:text-gray-900 border-transparent"
+                className={`pb-4 px-1 text-sm font-semibold whitespace-nowrap cursor-pointer border-b-2 transition-all duration-300 hover:scale-105 ${
+                  isActivePath("/dashboard/students")
+                    ? "text-gray-900 border-yellow-400 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900 border-transparent hover:border-gray-300"
                 }`}
               >
                 Students
@@ -311,10 +321,10 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
 
               <button
                 onClick={() => router.push("/dashboard/courses")}
-                className={`pb-4 text-sm whitespace-nowrap cursor-pointer border-b-2 ${
+                className={`pb-4 px-1 text-sm font-semibold whitespace-nowrap cursor-pointer border-b-2 transition-all duration-300 hover:scale-105 ${
                   isActivePath("/dashboard/courses")
-                    ? "text-gray-900 border-yellow-400"
-                    : "text-gray-600 hover:text-gray-900 border-transparent"
+                    ? "text-gray-900 border-yellow-400 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900 border-transparent hover:border-gray-300"
                 }`}
               >
                 Courses
@@ -322,60 +332,71 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className={`pb-4 text-sm whitespace-nowrap flex items-center cursor-pointer border-b-2 ${
-                    isActivePath("/dashboard/attendance") 
-                      ? "text-gray-900 border-yellow-400" 
-                      : "text-gray-600 hover:text-gray-900 border-transparent"
+                  <button className={`pb-4 px-1 text-sm font-semibold whitespace-nowrap flex items-center cursor-pointer border-b-2 transition-all duration-300 hover:scale-105 ${
+                    isActivePath("/dashboard/attendance")
+                      ? "text-gray-900 border-yellow-400 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900 border-transparent hover:border-gray-300"
                   }`}>
                     Attendance
-                    <ChevronDown className="w-3 h-3 ml-1" />
+                    <ChevronDown className="w-3 h-3 ml-1 transition-transform duration-200 group-hover:rotate-180" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => router.push("/dashboard/attendance/students")}>
+                <DropdownMenuContent className="bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl rounded-lg p-1 overflow-hidden">
+                  <DropdownMenuItem
+                    onClick={() => router.push("/dashboard/attendance/students")}
+                    className="hover:bg-gray-100/80 rounded-md transition-colors duration-200 font-medium text-gray-700 hover:text-gray-900"
+                  >
                     Student Attendance
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/dashboard/attendance/coaches")}>
+                  <DropdownMenuItem
+                    onClick={() => router.push("/dashboard/attendance/coaches")}
+                    className="hover:bg-gray-100/80 rounded-md transition-colors duration-200 font-medium text-gray-700 hover:text-gray-900"
+                  >
                     Coach Attendance
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <button 
+              <button
                 onClick={() => router.push("/dashboard/reports")}
-                className={`pb-4 text-sm whitespace-nowrap cursor-pointer border-b-2 ${
-                  isActivePath("/dashboard/reports") 
-                    ? "text-gray-900 border-yellow-400" 
-                    : "text-gray-600 hover:text-gray-900 border-transparent"
+                className={`pb-4 px-1 text-sm font-semibold whitespace-nowrap cursor-pointer border-b-2 transition-all duration-300 hover:scale-105 ${
+                  isActivePath("/dashboard/reports")
+                    ? "text-gray-900 border-yellow-400 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900 border-transparent hover:border-gray-300"
                 }`}
               >
                 Reports
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="text-gray-600 hover:text-gray-600 p-1 cursor-pointer">
+                  <button className="text-gray-600 hover:text-gray-800 p-2 cursor-pointer rounded-lg hover:bg-gray-100/80 transition-all duration-200 hover:shadow-sm">
                     <MoreHorizontal className="w-5 h-5" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => router.push("/dashboard/categories")}>
+                <DropdownMenuContent className="bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl rounded-lg p-1 overflow-hidden">
+                  <DropdownMenuItem
+                    onClick={() => router.push("/dashboard/categories")}
+                    className="hover:bg-gray-100/80 rounded-md transition-colors duration-200 font-medium text-gray-700 hover:text-gray-900"
+                  >
                     Categories Management
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/dashboard/payment-tracking")}>
+                  <DropdownMenuItem
+                    onClick={() => router.push("/dashboard/payment-tracking")}
+                    className="hover:bg-gray-100/80 rounded-md transition-colors duration-200 font-medium text-gray-700 hover:text-gray-900"
+                  >
                     Payment Tracking
                   </DropdownMenuItem>
-
                 </DropdownMenuContent>
               </DropdownMenu>
             </nav>
           </div>
 
           {/* Search and User Controls */}
-          <div className="flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
+          <div className="flex items-center space-x-3 lg:space-x-5 flex-shrink-0">
             <div className="relative hidden lg:block" ref={searchContainerRef}>
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-4 h-4" />
               <Input
                 placeholder="Try searching: User Name, Course Name, User ID"
-                className="pl-10 w-64 xl:w-80 bg-gray-50"
+                className="pl-10 w-64 xl:w-80 bg-gray-50/80 border-gray-200/60 focus:bg-white focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all duration-200 rounded-lg shadow-sm"
                 value={searchQuery}
                 onChange={handleSearchChange}
                 onKeyDown={handleSearchKeyPress}
@@ -396,39 +417,40 @@ export default function DashboardHeader({ currentPage = "Dashboard" }: Dashboard
             <div className="relative z-[1000]">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    className="flex items-center space-x-2 hover:bg-gray-100"
+                  <Button
+                    variant="ghost"
+                    className="flex items-center space-x-3 hover:bg-gray-100/80 rounded-lg px-3 py-2 transition-all duration-200 hover:shadow-sm"
                   >
-                    <Avatar className="w-8 h-8">
+                    <Avatar className="w-8 h-8 ring-2 ring-gray-200/50 hover:ring-yellow-400/30 transition-all duration-200">
                       <AvatarImage src="/placeholder.svg" />
-                      <AvatarFallback>SA</AvatarFallback>
+                      <AvatarFallback className="bg-gradient-to-br from-yellow-400 to-yellow-500 text-white font-semibold text-xs">SA</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium hidden lg:inline">Super admin</span>
-                    <ChevronDown className="w-4 h-4" />
+                    <span className="text-sm font-semibold text-gray-800 hidden lg:inline">Super admin</span>
+                    <ChevronDown className="w-4 h-4 text-gray-600 transition-transform duration-200 group-hover:rotate-180" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuPortal>
-                  <DropdownMenuContent 
-                    align="end" 
-                    className="w-56 z-[1000]" 
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-56 z-[1000] bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl rounded-lg p-2 overflow-hidden"
                     sideOffset={8}
                   >
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => router.push("/dashboard/profile")}
-                      className="cursor-pointer hover:bg-gray-100 px-4 py-2 text-sm"
+                      className="cursor-pointer hover:bg-gray-100/80 rounded-md px-4 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
                     >
                       Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => router.push("/dashboard/settings")}
-                      className="cursor-pointer hover:bg-gray-100 px-4 py-2 text-sm"
+                      className="cursor-pointer hover:bg-gray-100/80 rounded-md px-4 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
                     >
                       Settings
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <div className="h-px bg-gray-200/60 my-2"></div>
+                    <DropdownMenuItem
                       onClick={handleLogout}
-                      className="cursor-pointer hover:bg-gray-100 px-4 py-2 text-sm text-red-600 focus:bg-red-50"
+                      className="cursor-pointer hover:bg-red-50/80 rounded-md px-4 py-3 text-sm font-medium text-red-600 hover:text-red-700 transition-colors duration-200"
                     >
                       Logout
                     </DropdownMenuItem>

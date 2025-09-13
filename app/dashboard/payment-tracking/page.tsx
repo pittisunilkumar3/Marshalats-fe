@@ -15,17 +15,17 @@ import DashboardHeader from "@/components/dashboard-header"
 
 interface Payment {
   id: string
-  student_id: string
-  student_name: string
-  amount: number
-  payment_type: string
-  payment_method: string
+  student_id?: string
+  student_name?: string | null
+  amount?: number | null
+  payment_type?: string
+  payment_method?: string | null
   payment_status: string
-  transaction_id: string
-  payment_date: string
-  course_name?: string
-  branch_name?: string
-  created_at: string
+  transaction_id?: string | null
+  payment_date?: string | null
+  course_name?: string | null
+  branch_name?: string | null
+  created_at?: string | null
 }
 
 interface PaymentStats {
@@ -98,9 +98,9 @@ export default function PaymentTrackingPage() {
 
   // Filter payments
   const filteredPayments = payments.filter(payment => {
-    const matchesSearch = payment.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         payment.transaction_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         payment.course_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = (payment.student_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                         (payment.transaction_id?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                         (payment.course_name?.toLowerCase() || '').includes(searchQuery.toLowerCase())
 
     const matchesStatus = statusFilter === "all" || payment.payment_status === statusFilter
     const matchesType = typeFilter === "all" || payment.payment_type === typeFilter
@@ -133,12 +133,17 @@ export default function PaymentTrackingPage() {
   }
 
   // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'N/A'
+    try {
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    } catch (error) {
+      return 'Invalid Date'
+    }
   }
 
 
