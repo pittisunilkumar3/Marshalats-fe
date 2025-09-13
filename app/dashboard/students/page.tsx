@@ -58,12 +58,17 @@ export default function StudentList() {
   const [showAssignPopup, setShowAssignPopup] = useState(false)
   const [showDeletePopup, setShowDeletePopup] = useState(false)
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null)
+  const [selectedStudent, setSelectedStudent] = useState("")
   const [selectedBranch, setSelectedBranch] = useState("")
   const [selectedCourses, setSelectedCourses] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [students, setStudents] = useState<Student[]>([])
+  const [branches, setBranches] = useState<any[]>([])
+  const [courses, setCourses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [assignmentLoading, setAssignmentLoading] = useState(false)
+  const [assignmentError, setAssignmentError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
   // Fetch students from API
@@ -182,15 +187,107 @@ export default function StudentList() {
     fetchStudents()
   }, [])
 
+  // Fetch branches and courses for the assignment modal
+  const fetchBranchesAndCourses = async () => {
+    try {
+      const token = TokenManager.getToken()
+      if (!token) return
+
+      // Fetch branches
+      const branchesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (branchesResponse.ok) {
+        const branchesData = await branchesResponse.json()
+        setBranches(branchesData.branches || branchesData || [])
+      }
+
+      // Fetch courses
+      const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (coursesResponse.ok) {
+        const coursesData = await coursesResponse.json()
+        setCourses(coursesData.courses || coursesData || [])
+      }
+    } catch (error) {
+      console.error("Error fetching branches and courses:", error)
+    }
+  }
 
   const handleAssignClick = () => {
+    fetchBranchesAndCourses()
     setShowAssignPopup(true)
   }
 
-  const handleAssignConfirm = () => {
-    setShowAssignPopup(false)
-    setSelectedBranch("")
-    setSelectedCourses([])
+  const handleAssignConfirm = async () => {
+    if (!selectedStudent || !selectedBranch || selectedCourses.length === 0) {
+      setAssignmentError("Please select a student, branch, and at least one course")
+      return
+    }
+
+    try {
+      setAssignmentLoading(true)
+      setAssignmentError(null)
+
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      // Update student with branch and course assignments
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${selectedStudent}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          branch: {
+            location_id: "hyderabad", // Default location
+            branch_id: selectedBranch
+          },
+          course: selectedCourses.length > 0 ? {
+            category_id: "martial-arts", // Default category
+            course_id: selectedCourses[0], // Use first selected course
+            duration: "3-months" // Default duration
+          } : undefined
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || `Failed to assign student (${response.status})`)
+      }
+
+      // Update local state to reflect changes
+      setStudents(prevStudents =>
+        prevStudents.map(student =>
+          student.id === selectedStudent
+            ? {
+                ...student,
+                branch_info: { location_id: "hyderabad", branch_id: selectedBranch },
+                course_info: selectedCourses.length > 0 ? {
+                  category_id: "martial-arts",
+                  course_id: selectedCourses[0],
+                  duration: "3-months"
+                } : student.course_info
+              }
+            : student
+        )
+      )
+
+      alert("Student assigned successfully!")
+      setShowAssignPopup(false)
+      setSelectedStudent("")
+      setSelectedBranch("")
+      setSelectedCourses([])
+
+    } catch (error) {
+      setAssignmentError(error instanceof Error ? error.message : 'Failed to assign student')
+    } finally {
+      setAssignmentLoading(false)
+    }
   }
 
   const handleDeleteClick = (studentId: string) => {
@@ -638,57 +735,105 @@ export default function StudentList() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Assign student to branch</h3>
-              <Button variant="ghost" size="sm" onClick={() => setShowAssignPopup(false)} className="p-1">
+              <h3 className="text-lg font-semibold">Assign Student to Branch & Course</h3>
+              <Button variant="ghost" size="sm" onClick={() => {
+                setShowAssignPopup(false)
+                setAssignmentError(null)
+                setSelectedStudent("")
+                setSelectedBranch("")
+                setSelectedCourses([])
+              }} className="p-1">
                 ×
               </Button>
             </div>
 
+            {assignmentError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{assignmentError}</p>
+              </div>
+            )}
+
             <div className="space-y-4">
+              {/* Student Dropdown */}
               <div>
-                <label className="block text-sm font-medium mb-2">Select branch</label>
-                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                <label className="block text-sm font-medium mb-2">Select Student</label>
+                <Select value={selectedStudent} onValueChange={setSelectedStudent}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Madhapur" />
+                    <SelectValue placeholder="Choose a student..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="madhapur">Madhapur</SelectItem>
-                    <SelectItem value="hitech-city">Hitech City</SelectItem>
-                    <SelectItem value="gachibowli">Gachibowli</SelectItem>
+                    {filteredStudents.map((student) => (
+                      <SelectItem key={student.id} value={student.id}>
+                        {student.full_name || student.student_name} ({student.email})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Branch Dropdown */}
               <div>
-                <label className="block text-sm font-medium mb-2">Select course</label>
+                <label className="block text-sm font-medium mb-2">Select Branch</label>
+                <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a branch..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((branch) => {
+                      const branchName = branch.branch?.name || branch.name
+                      const address = branch.branch?.address || branch.address
+                      const addressText = address ? `${address.area}, ${address.city}` : 'No address'
+
+                      return (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branchName} - {addressText}
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Course Selection */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Select Courses</label>
                 <Select>
                   <SelectTrigger>
-                    <SelectValue placeholder="Kick Boxing" />
+                    <SelectValue placeholder="Choose courses..." />
                   </SelectTrigger>
                   <SelectContent>
                     <div className="p-2 space-y-2">
-                      {availableCourses.map((course) => (
-                        <div key={course} className="flex items-center space-x-2">
+                      {courses.map((course) => (
+                        <div key={course.id} className="flex items-center space-x-2">
                           <input
                             type="checkbox"
-                            id={course}
-                            checked={selectedCourses.includes(course)}
-                            onChange={() => handleCourseToggle(course)}
+                            id={course.id}
+                            checked={selectedCourses.includes(course.id)}
+                            onChange={() => handleCourseToggle(course.id)}
                             className="rounded"
                           />
-                          <label htmlFor={course} className="text-sm">
-                            {course}
+                          <label htmlFor={course.id} className="text-sm">
+                            {course.title} - {course.difficulty_level}
                           </label>
                         </div>
                       ))}
                     </div>
                   </SelectContent>
                 </Select>
+                {selectedCourses.length > 0 && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    Selected: {selectedCourses.length} course(s)
+                  </div>
+                )}
               </div>
             </div>
 
-            <Button onClick={handleAssignConfirm} className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white">
-              Assign Now
+            <Button
+              onClick={handleAssignConfirm}
+              disabled={assignmentLoading}
+              className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+            >
+              {assignmentLoading ? "Assigning..." : "Assign Now"}
             </Button>
           </div>
         </div>

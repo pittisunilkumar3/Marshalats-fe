@@ -50,10 +50,11 @@ export default function CoachesListPage() {
   const [isSendingCredentials, setIsSendingCredentials] = useState(false)
   const [assignData, setAssignData] = useState({ branch: "", coach: "" })
   const [coaches, setCoaches] = useState<Coach[]>([])
+  const [branches, setBranches] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const branchOptions = ["Madhapur", "Hitech City", "Gachibowli", "Kondapur", "Kukatpally"]
+  const [assignmentLoading, setAssignmentLoading] = useState(false)
+  const [assignmentError, setAssignmentError] = useState<string | null>(null)
 
   // Fetch coaches from API
   useEffect(() => {
@@ -98,14 +99,70 @@ export default function CoachesListPage() {
     fetchCoaches()
   }, [])
 
+  // Fetch branches for the assignment modal
+  const fetchBranches = async () => {
+    try {
+      const token = TokenManager.getToken()
+      if (!token) return
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setBranches(data.branches || data || [])
+      }
+    } catch (error) {
+      console.error("Error fetching branches:", error)
+    }
+  }
+
   const handleAssignClick = () => {
+    fetchBranches()
     setShowAssignPopup(true)
   }
 
-  const handleAssignSubmit = () => {
-    // Handle assignment logic here
-    setShowAssignPopup(false)
-    setAssignData({ branch: "", coach: "" })
+  const handleAssignSubmit = async () => {
+    if (!assignData.branch || !assignData.coach) {
+      setAssignmentError("Please select both a branch and a coach")
+      return
+    }
+
+    try {
+      setAssignmentLoading(true)
+      setAssignmentError(null)
+
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found. Please login again.")
+      }
+
+      // Update the branch with the new manager_id (coach)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches/${assignData.branch}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          manager_id: assignData.coach
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || `Failed to assign manager (${response.status})`)
+      }
+
+      alert("Coach assigned as manager successfully!")
+      setShowAssignPopup(false)
+      setAssignData({ branch: "", coach: "" })
+
+    } catch (error) {
+      setAssignmentError(error instanceof Error ? error.message : 'Failed to assign manager')
+    } finally {
+      setAssignmentLoading(false)
+    }
   }
 
   const handleDeleteClick = (coachId: string) => {
@@ -251,8 +308,8 @@ export default function CoachesListPage() {
       coach.id?.toLowerCase().includes(searchLower) ||
       coach.contact_info?.email?.toLowerCase().includes(searchLower) ||
       coach.contact_info?.phone?.toLowerCase().includes(searchLower) ||
-      coach.gender?.toLowerCase().includes(searchLower) ||
-      coach.designation?.toLowerCase().includes(searchLower) ||
+      coach.personal_info?.gender?.toLowerCase().includes(searchLower) ||
+      coach.professional_info?.designation_id?.toLowerCase().includes(searchLower) ||
       coach.areas_of_expertise?.some(expertise =>
         expertise.toLowerCase().includes(searchLower)
       )
@@ -445,27 +502,44 @@ export default function CoachesListPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Change Branch manager</h3>
-              <Button variant="ghost" onClick={() => setShowAssignPopup(false)} className="p-1">
+              <h3 className="text-lg font-semibold">Assign Coach as Branch Manager</h3>
+              <Button variant="ghost" onClick={() => {
+                setShowAssignPopup(false)
+                setAssignmentError(null)
+                setAssignData({ branch: "", coach: "" })
+              }} className="p-1">
                 <span className="text-xl">&times;</span>
               </Button>
             </div>
+
+            {assignmentError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{assignmentError}</p>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select branch</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Branch</label>
                 <Select
                   value={assignData.branch}
                   onValueChange={(value) => setAssignData({ ...assignData, branch: value })}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Madhapur" />
+                    <SelectValue placeholder="Choose a branch..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {branchOptions.map((branch) => (
-                      <SelectItem key={branch} value={branch}>
-                        {branch}
-                      </SelectItem>
-                    ))}
+                    {branches.map((branch) => {
+                      const branchName = branch.branch?.name || branch.name
+                      const address = branch.branch?.address || branch.address
+                      const addressText = address ? `${address.area}, ${address.city}` : 'No address'
+
+                      return (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branchName} - {addressText}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -476,19 +550,29 @@ export default function CoachesListPage() {
                   onValueChange={(value) => setAssignData({ ...assignData, coach: value })}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Ravi chandran" />
+                    <SelectValue placeholder="Choose a coach..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {coachOptions.map((coach) => (
-                      <SelectItem key={coach} value={coach}>
-                        {coach}
+                    {filteredCoaches.map((coach) => (
+                      <SelectItem key={coach.id} value={coach.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{coach.full_name}</span>
+                          <span className="text-sm text-gray-500">{coach.contact_info?.email}</span>
+                          <span className="text-xs text-gray-400">
+                            {coach.areas_of_expertise?.join(", ")}
+                          </span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleAssignSubmit} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                Assign Now
+              <Button
+                onClick={handleAssignSubmit}
+                disabled={assignmentLoading}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+              >
+                {assignmentLoading ? "Assigning..." : "Assign as Manager"}
               </Button>
             </div>
           </div>
