@@ -233,7 +233,7 @@ export default function CreateStudent() {
       try {
         // Load courses
         setIsLoadingCourses(true)
-        const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/public/all`)
+        const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses/public/all`)
         if (coursesResponse.ok) {
           const coursesData = await coursesResponse.json()
           const allCourses = coursesData.courses || []

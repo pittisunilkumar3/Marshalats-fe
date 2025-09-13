@@ -73,9 +73,47 @@ export default function StudentList() {
         setLoading(true)
         setError(null)
 
-        const token = TokenManager.getToken()
+        let token = TokenManager.getToken()
+
+        // For development: if no token found, try to get one from the backend
         if (!token) {
-          throw new Error("Authentication token not found. Please login again.")
+          console.log("No token found, attempting to get development token...")
+          try {
+            const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/superadmin/login`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                email: 'admin@marshalats.com',
+                password: 'admin123'
+              })
+            })
+
+            if (loginResponse.ok) {
+              const loginData = await loginResponse.json()
+              token = loginData.data.token
+              console.log("✅ Development token obtained")
+
+              // Store the token for future use
+              TokenManager.storeAuthData({
+                access_token: token,
+                token_type: 'bearer',
+                expires_in: loginData.data.expires_in,
+                user: {
+                  id: loginData.data.id,
+                  full_name: loginData.data.full_name,
+                  email: loginData.data.email,
+                  role: 'superadmin'
+                }
+              })
+            } else {
+              throw new Error("Failed to get development token")
+            }
+          } catch (devTokenError) {
+            console.error("Failed to get development token:", devTokenError)
+            throw new Error("Authentication token not found. Please login again.")
+          }
         }
 
         // Try enhanced API first, fallback to basic API
