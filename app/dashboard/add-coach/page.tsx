@@ -438,7 +438,17 @@ export default function AddCoachPage() {
           certifications: formData.certifications ? formData.certifications.split(',').map(cert => cert.trim()) : []
         },
         areas_of_expertise: formData.specializations,
-        branch_id: formData.branch || null  // Include branch assignment
+        branch_id: formData.branch || null,  // Include branch assignment
+        assignment_details: {
+          courses: formData.courses,  // Include course assignments
+          salary: formData.salary ? parseFloat(formData.salary) : null,
+          join_date: formData.joinDate || null
+        },
+        emergency_contact: {
+          name: formData.emergencyContactName || null,
+          phone: formData.emergencyContactPhone || null,
+          relationship: formData.emergencyContactRelation || null
+        }
       }
 
       console.log("Creating coach with data:", coachData)
@@ -447,7 +457,8 @@ export default function AddCoachPage() {
       if (formData.branch || formData.courses.length > 0) {
         console.log("Branch and course assignments:", {
           selectedBranch: formData.branch,
-          selectedCourses: formData.courses
+          selectedCourses: formData.courses,
+          assignmentDetails: coachData.assignment_details
         })
       }
 

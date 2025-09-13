@@ -69,7 +69,7 @@ export default function EditCoachPage() {
   const [designations, setDesignations] = useState<string[]>([])
   const [specializations, setSpecializations] = useState<string[]>([])
   const [branches, setBranches] = useState<any[]>([])
-  const [courses, setCourses] = useState<string[]>([])
+  const [courses, setCourses] = useState<any[]>([])
 
   // Loading states for dynamic data
   const [isLoadingDesignations, setIsLoadingDesignations] = useState(true)
@@ -87,6 +87,93 @@ export default function EditCoachPage() {
       })
     }
   }, [formData.branch, branches, isLoading, isLoadingBranches])
+
+  // Debug effect to log course selection state
+  useEffect(() => {
+    if (!isLoading && !isLoadingCourses) {
+      console.log("Course selection debug:", {
+        formDataCourses: formData.courses,
+        availableCourses: courses.map(c => ({ id: c.id, title: c.title })),
+        courseMatches: formData.courses.map(courseId => ({
+          courseId,
+          match: courses.find(c => c.id === courseId)
+        }))
+      })
+    }
+  }, [formData.courses, courses, isLoading, isLoadingCourses])
+
+  // Effect to ensure course assignments are properly set after both coach data and courses are loaded
+  useEffect(() => {
+    if (!isLoading && !isLoadingCourses && courses.length > 0) {
+      // This effect runs after both coach data and courses are loaded
+      console.log("Both coach data and courses loaded - verifying course assignments:", {
+        formDataCourses: formData.courses,
+        availableCourses: courses.length,
+        courseMatches: formData.courses.map(courseId => {
+          const match = courses.find(c => c.id === courseId)
+          return {
+            courseId,
+            found: !!match,
+            title: match?.title || 'NOT FOUND'
+          }
+        })
+      })
+
+      // Force a re-render to ensure checkboxes reflect the correct state
+      // This helps with any timing issues
+      if (formData.courses.length > 0) {
+        console.log("Forcing form data refresh to ensure UI consistency")
+        setFormData(prev => ({
+          ...prev,
+          courses: [...prev.courses] // Create new array reference to trigger re-render
+        }))
+      }
+    }
+  }, [isLoading, isLoadingCourses, courses.length])
+
+  // Debug effect to track form data changes
+  useEffect(() => {
+    console.log("Form data courses changed:", {
+      courses: formData.courses,
+      length: formData.courses.length,
+      timestamp: new Date().toISOString()
+    })
+  }, [formData.courses])
+
+  // Function to validate and fix course assignments
+  const validateCourseAssignments = (coachCourses: string[], availableCourses: any[]) => {
+    if (!coachCourses || !availableCourses || availableCourses.length === 0) {
+      return coachCourses || []
+    }
+
+    const availableCourseIds = availableCourses.map(c => c.id)
+    const validCourses = coachCourses.filter(courseId => availableCourseIds.includes(courseId))
+
+    console.log("Course assignment validation:", {
+      originalCourses: coachCourses,
+      availableCourseIds,
+      validCourses,
+      invalidCourses: coachCourses.filter(courseId => !availableCourseIds.includes(courseId))
+    })
+
+    return validCourses
+  }
+
+  // Effect to validate and fix course assignments after both coach data and courses are loaded
+  useEffect(() => {
+    if (!isLoading && !isLoadingCourses && courses.length > 0 && formData.courses.length > 0) {
+      const validatedCourses = validateCourseAssignments(formData.courses, courses)
+
+      // Only update if there's a difference
+      if (JSON.stringify(validatedCourses) !== JSON.stringify(formData.courses)) {
+        console.log("Updating form data with validated courses:", validatedCourses)
+        setFormData(prev => ({
+          ...prev,
+          courses: validatedCourses
+        }))
+      }
+    }
+  }, [isLoading, isLoadingCourses, courses, formData.courses])
 
   // Fetch coach data and dynamic options on component mount
   useEffect(() => {
@@ -115,10 +202,9 @@ export default function EditCoachPage() {
               'Content-Type': 'application/json'
             }
           }),
-          // Fetch courses
-          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses?active_only=true&limit=100`, {
+          // Fetch courses (using public endpoint like create form)
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses/public/all`, {
             headers: {
-              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
           })
@@ -132,6 +218,8 @@ export default function EditCoachPage() {
           console.log("Loading coach data:", {
             coachId: coachData.id,
             currentBranchId: coachData.branch_id,
+            assignmentDetails: coachData.assignment_details,
+            existingCourses: coachData.assignment_details?.courses,
             coachData: coachData
           })
           setFormData({
@@ -226,21 +314,25 @@ export default function EditCoachPage() {
         // Handle courses data
         if (coursesResponse.status === 'fulfilled' && coursesResponse.value.ok) {
           const coursesData = await coursesResponse.value.json()
-          const coursesList = (coursesData.courses || []).map((course: any) =>
-            course.title || course.name
-          )
+          const coursesList = (coursesData.courses || []).map((course: any) => ({
+            id: course.id,
+            title: course.title || course.name,
+            code: course.code,
+            difficulty_level: course.difficulty_level
+          }))
           setCourses(coursesList)
+          console.log("Loaded courses for edit form:", coursesList)
         } else {
           // Fallback to hardcoded courses if API fails
           setCourses([
-            "Taekwondo Basics",
-            "Advanced Karate",
-            "Kung Fu Fundamentals",
-            "Self Defense for Women",
-            "Mixed Martial Arts",
-            "Kids Martial Arts",
-            "Adult Fitness Boxing",
-            "Traditional Dance Forms"
+            { id: "course-1", title: "Taekwondo Basics", code: "TKD-001", difficulty_level: "Beginner" },
+            { id: "course-2", title: "Advanced Karate", code: "KAR-002", difficulty_level: "Advanced" },
+            { id: "course-3", title: "Kung Fu Fundamentals", code: "KF-001", difficulty_level: "Beginner" },
+            { id: "course-4", title: "Self Defense for Women", code: "SD-001", difficulty_level: "Beginner" },
+            { id: "course-5", title: "Mixed Martial Arts", code: "MMA-001", difficulty_level: "Intermediate" },
+            { id: "course-6", title: "Kids Martial Arts", code: "KMA-001", difficulty_level: "Beginner" },
+            { id: "course-7", title: "Adult Fitness Boxing", code: "AFB-001", difficulty_level: "Intermediate" },
+            { id: "course-8", title: "Traditional Dance Forms", code: "TDF-001", difficulty_level: "Beginner" }
           ])
         }
         setIsLoadingCourses(false)
@@ -272,12 +364,12 @@ export default function EditCoachPage() {
     }))
   }
 
-  const handleCourseToggle = (course: string) => {
+  const handleCourseToggle = (courseId: string) => {
     setFormData(prev => ({
       ...prev,
-      courses: prev.courses.includes(course)
-        ? prev.courses.filter(c => c !== course)
-        : [...prev.courses, course]
+      courses: prev.courses.includes(courseId)
+        ? prev.courses.filter(c => c !== courseId)
+        : [...prev.courses, courseId]
     }))
   }
 
@@ -376,13 +468,25 @@ export default function EditCoachPage() {
           certifications: formData.certifications ? formData.certifications.split(',').map(cert => cert.trim()) : []
         },
         areas_of_expertise: formData.specializations,
-        branch_id: formData.branch || null  // Include branch assignment
+        branch_id: formData.branch || null,  // Include branch assignment
+        assignment_details: {
+          courses: formData.courses,  // Include course assignments
+          salary: formData.salary ? parseFloat(formData.salary) : null,
+          join_date: formData.joinDate || null
+        },
+        emergency_contact: {
+          name: formData.emergencyContactName || null,
+          phone: formData.emergencyContactPhone || null,
+          relationship: formData.emergencyContactRelation || null
+        }
       }
 
       console.log("Updating coach with data:", coachData)
-      console.log("Branch assignment:", {
+      console.log("Branch and course assignments:", {
         selectedBranchId: formData.branch,
-        availableBranches: branches.map(b => ({ id: b.id, name: b.name }))
+        selectedCourses: formData.courses,
+        availableBranches: branches.map(b => ({ id: b.id, name: b.name })),
+        assignmentDetails: coachData.assignment_details
       })
 
       const token = TokenManager.getToken()
@@ -828,35 +932,54 @@ export default function EditCoachPage() {
 
               <div className="space-y-2">
                 <Label>Assign Courses</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {courses.map((course) => (
-                    <div key={course} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`course-${course}`}
-                        checked={formData.courses.includes(course)}
-                        onCheckedChange={() => handleCourseToggle(course)}
-                      />
-                      <Label htmlFor={`course-${course}`} className="text-sm cursor-pointer">
-                        {course}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                
+                {isLoadingCourses ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600"></div>
+                    <span className="ml-2 text-sm text-gray-600">Loading courses...</span>
+                  </div>
+                ) : courses.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {courses.map((course) => (
+                      <div key={course.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`course-${course.id}`}
+                          checked={formData.courses.includes(course.id)}
+                          onCheckedChange={() => handleCourseToggle(course.id)}
+                        />
+                        <Label htmlFor={`course-${course.id}`} className="text-sm cursor-pointer">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{course.title}</span>
+                            <span className="text-xs text-gray-500">
+                              {course.code} • {course.difficulty_level}
+                            </span>
+                          </div>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <p className="text-sm">No courses available</p>
+                  </div>
+                )}
+
                 {formData.courses.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.courses.map((course) => (
-                      <Badge key={course} variant="secondary" className="bg-blue-100 text-blue-800">
-                        {course}
-                        <button
-                          type="button"
-                          onClick={() => handleCourseToggle(course)}
-                          className="ml-2 hover:text-red-600"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
+                    {formData.courses.map((courseId) => {
+                      const course = courses.find(c => c.id === courseId)
+                      return course ? (
+                        <Badge key={courseId} variant="secondary" className="bg-blue-100 text-blue-800">
+                          {course.title}
+                          <button
+                            type="button"
+                            onClick={() => handleCourseToggle(courseId)}
+                            className="ml-2 hover:text-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ) : null
+                    })}
                   </div>
                 )}
               </div>
