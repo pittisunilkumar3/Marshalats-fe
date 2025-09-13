@@ -156,7 +156,7 @@ export default function CreateBranchPage() {
         if (!token) {
           console.log('No token found, attempting to get superadmin token...')
           try {
-            const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/superadmin/login`, {
+            const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/superadmin/login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -260,7 +260,7 @@ export default function CreateBranchPage() {
         setIsLoadingCourses(true)
 
         // Use the same token for courses
-        const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/public/all`, {
+        const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses/public/all`, {
           headers: {
             'Content-Type': 'application/json'
           }
@@ -510,7 +510,7 @@ export default function CreateBranchPage() {
 
       console.log('Creating branch with data:', formData)
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -800,7 +800,9 @@ export default function CreateBranchPage() {
                         </SelectTrigger>
                         <SelectContent>
                           {coaches.length === 0 ? (
-                            <SelectItem value="" disabled>No coaches available</SelectItem>
+                            <div className="p-4 text-center text-gray-500">
+                              <p>No coaches available</p>
+                            </div>
                           ) : (
                             coaches.map((coach) => (
                               <SelectItem key={coach.id} value={coach.id}>

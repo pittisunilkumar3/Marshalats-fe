@@ -86,9 +86,19 @@ export default function CreateCoursePage() {
         }
 
         const data = await response.json()
-        setCategories(data.categories || [])
+        // Filter out categories with empty or invalid IDs
+        const validCategories = (data.categories || []).filter((category: any) =>
+          category && category.id && category.id.trim() !== ''
+        )
+        setCategories(validCategories)
       } catch (error) {
         console.error('Error fetching categories:', error)
+        // Set fallback categories if API fails
+        setCategories([
+          { id: 'default-category-1', name: 'General Martial Arts', course_count: 0 },
+          { id: 'default-category-2', name: 'Self Defense', course_count: 0 },
+          { id: 'default-category-3', name: 'Fitness & Training', course_count: 0 }
+        ])
         toast({
           title: "Error",
           description: "Failed to load categories. Using default options.",
@@ -146,8 +156,8 @@ export default function CreateCoursePage() {
           equipment_required: formData.equipmentRequired ? formData.equipmentRequired.split(',').map(item => item.trim()) : []
         },
         media_resources: {
-          course_image_url: formData.courseImageUrl || "",
-          promo_video_url: formData.promoVideoUrl || ""
+          course_image_url: (formData as any).courseImageUrl || "",
+          promo_video_url: (formData as any).promoVideoUrl || ""
         },
         pricing: {
           currency: formData.currency,
@@ -155,7 +165,7 @@ export default function CreateCoursePage() {
           branch_specific_pricing: formData.branchSpecificPricing
         },
         settings: {
-          offers_certification: formData.offersCertification || true,
+          offers_certification: (formData as any).offersCertification || true,
           active: true
         }
       }
@@ -173,9 +183,12 @@ export default function CreateCoursePage() {
       }
 
       console.log('📋 Course data to send:', apiData)
+      console.log('🌐 Environment variable NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL)
+      console.log('🎯 Full URL being called:', `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses`)
 
       // Call backend API directly
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8003'
+      const response = await fetch(`${apiUrl}/api/courses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -193,7 +206,7 @@ export default function CreateCoursePage() {
       // Show success
       toast({
         title: "Success!",
-        description: `Course created successfully with ID: ${response.course_id}`,
+        description: `Course created successfully with ID: ${result.course_id || 'Generated'}`,
       })
 
       setShowSuccessPopup(true)
@@ -340,11 +353,13 @@ export default function CreateCoursePage() {
                           </SelectTrigger>
                           <SelectContent>
                             {categories.length > 0 ? (
-                              categories.map((category) => (
-                                <SelectItem key={category.id} value={category.id}>
-                                  {category.name} ({category.course_count} courses)
-                                </SelectItem>
-                              ))
+                              categories
+                                .filter((category) => category && category.id && category.id.trim() !== '')
+                                .map((category) => (
+                                  <SelectItem key={category.id} value={category.id}>
+                                    {category.name} ({category.course_count || 0} courses)
+                                  </SelectItem>
+                                ))
                             ) : (
                               <div className="p-4 text-center text-gray-500">
                                 <p>No categories available</p>
@@ -430,7 +445,7 @@ export default function CreateCoursePage() {
                           value={newPrerequisite}
                           onChange={(e) => setNewPrerequisite(e.target.value)}
                           placeholder="Add a prerequisite (e.g., Basic fitness level)"
-                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPrerequisite())}
+                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPrerequisite())}
                         />
                         <Button type="button" onClick={addPrerequisite} size="sm">
                           <Plus className="w-4 h-4" />

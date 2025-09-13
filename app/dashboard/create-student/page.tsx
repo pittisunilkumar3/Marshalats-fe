@@ -865,8 +865,10 @@ export default function CreateStudent() {
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
                             {filteredCourses.length > 0 ? (
-                              filteredCourses.map((course) => (
-                                <SelectItem key={course.id} value={course.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                              filteredCourses
+                                .filter((course) => course && course.id && course.id.trim() !== '')
+                                .map((course) => (
+                                  <SelectItem key={course.id} value={course.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
                                   <div className="flex flex-col">
                                     <span className="font-medium">{course.title}</span>
                                     <span className="text-xs text-gray-500">
@@ -1131,8 +1133,10 @@ export default function CreateStudent() {
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
                             {filteredBranches.length > 0 ? (
-                              filteredBranches.map((branch) => (
-                                <SelectItem key={branch.id} value={branch.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                              filteredBranches
+                                .filter((branch) => branch && branch.id && branch.id.trim() !== '')
+                                .map((branch) => (
+                                  <SelectItem key={branch.id} value={branch.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
                                   <div className="flex flex-col">
                                     <span className="font-medium">{branch.name}</span>
                                     <span className="text-xs text-gray-500">

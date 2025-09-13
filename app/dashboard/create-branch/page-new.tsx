@@ -31,6 +31,7 @@ export default function CreateBranchPage() {
 
         {/* Branch Creation Form */}
         <div className="bg-white rounded-lg shadow-sm p-6">
+
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -140,7 +141,9 @@ export default function CreateBranchPage() {
               </Button>
             </div>
           </div>
+          
         </div>
+
       </main>
     </div>
   )

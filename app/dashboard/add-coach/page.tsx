@@ -190,7 +190,7 @@ export default function AddCoachPage() {
         if (!token) {
           console.log('No token found, attempting to get superadmin token...')
           try {
-            const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/superadmin/login`, {
+            const loginResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/superadmin/login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -437,15 +437,15 @@ export default function AddCoachPage() {
           designation_id: formData.designation,
           certifications: formData.certifications ? formData.certifications.split(',').map(cert => cert.trim()) : []
         },
-        areas_of_expertise: formData.specializations
+        areas_of_expertise: formData.specializations,
+        branch_id: formData.branch || null  // Include branch assignment
       }
 
       console.log("Creating coach with data:", coachData)
 
-      // Note: Branch and course assignments are collected in the form but not included in the coach creation API
-      // These assignments would typically be handled separately after coach creation or through branch management
+      // Log branch and course assignments for debugging
       if (formData.branch || formData.courses.length > 0) {
-        console.log("Branch and course assignments collected:", {
+        console.log("Branch and course assignments:", {
           selectedBranch: formData.branch,
           selectedCourses: formData.courses
         })
@@ -839,7 +839,9 @@ export default function AddCoachPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {branches.length === 0 ? (
-                          <SelectItem value="" disabled>No branches available</SelectItem>
+                          <div className="p-4 text-center text-gray-500">
+                            <p>No branches available</p>
+                          </div>
                         ) : (
                           branches.map((branch) => (
                             <SelectItem key={branch.id} value={branch.id}>

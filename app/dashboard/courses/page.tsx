@@ -143,7 +143,7 @@ export default function CourseListPage() {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/${courseToDelete}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses/${courseToDelete}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,

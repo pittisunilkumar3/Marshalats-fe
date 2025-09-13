@@ -91,7 +91,7 @@ class SearchAPI extends BaseAPI {
       params.append('limit', options.limit.toString())
     }
 
-    return await this.makeRequest(`/search/global?${params.toString()}`, {
+    return await this.makeRequest(`/api/search/global?${params.toString()}`, {
       method: 'GET',
       token
     })
@@ -123,7 +123,7 @@ class SearchAPI extends BaseAPI {
       params.append('limit', options.limit.toString())
     }
 
-    return await this.makeRequest(`/search/users?${params.toString()}`, {
+    return await this.makeRequest(`/api/search/users?${params.toString()}`, {
       method: 'GET',
       token
     })
@@ -155,7 +155,7 @@ class SearchAPI extends BaseAPI {
       params.append('limit', options.limit.toString())
     }
 
-    return await this.makeRequest(`/search/coaches?${params.toString()}`, {
+    return await this.makeRequest(`/api/search/coaches?${params.toString()}`, {
       method: 'GET',
       token
     })
@@ -192,7 +192,7 @@ class SearchAPI extends BaseAPI {
       params.append('limit', options.limit.toString())
     }
 
-    return await this.makeRequest(`/search/courses?${params.toString()}`, {
+    return await this.makeRequest(`/api/search/courses?${params.toString()}`, {
       method: 'GET',
       token
     })
@@ -219,7 +219,7 @@ class SearchAPI extends BaseAPI {
       params.append('limit', options.limit.toString())
     }
 
-    return await this.makeRequest(`/search/branches?${params.toString()}`, {
+    return await this.makeRequest(`/api/search/branches?${params.toString()}`, {
       method: 'GET',
       token
     })

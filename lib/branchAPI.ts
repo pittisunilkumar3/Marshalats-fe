@@ -20,7 +20,7 @@ export interface BranchResponse {
 
 class BranchAPI extends BaseAPI {
   async createBranch(data: BranchCreateData, token: string): Promise<BranchResponse> {
-    return await this.makeRequest('/branches', {
+    return await this.makeRequest('/api/branches', {
       method: 'POST',
       body: data,
       token
@@ -28,21 +28,21 @@ class BranchAPI extends BaseAPI {
   }
 
   async getBranches(token: string): Promise<any> {
-    return await this.makeRequest('/branches', {
+    return await this.makeRequest('/api/branches', {
       method: 'GET',
       token
     })
   }
 
   async getBranchById(branchId: string, token: string): Promise<any> {
-    return await this.makeRequest(`/branches/${branchId}`, {
+    return await this.makeRequest(`/api/branches/${branchId}`, {
       method: 'GET',
       token
     })
   }
 
   async updateBranch(branchId: string, data: Partial<BranchCreateData>, token: string): Promise<any> {
-    return await this.makeRequest(`/branches/${branchId}`, {
+    return await this.makeRequest(`/api/branches/${branchId}`, {
       method: 'PUT',
       body: data,
       token
@@ -50,7 +50,7 @@ class BranchAPI extends BaseAPI {
   }
 
   async deleteBranch(branchId: string, token: string): Promise<any> {
-    return await this.makeRequest(`/branches/${branchId}`, {
+    return await this.makeRequest(`/api/branches/${branchId}`, {
       method: 'DELETE',
       token
     })

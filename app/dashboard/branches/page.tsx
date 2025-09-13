@@ -2,9 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, Edit, Trash2, X, Eye } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
@@ -48,6 +46,12 @@ interface Branch {
     account_number: string
     upi_id: string
   }
+  statistics?: {
+    coach_count: number
+    student_count: number
+    course_count: number
+    active_courses: number
+  }
   is_active: boolean
   created_at: string
   updated_at: string
@@ -64,6 +68,7 @@ export default function BranchesList() {
   const [branches, setBranches] = useState<Branch[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [loadingStats, setLoadingStats] = useState(false)
 
   // Modal states
   const [coaches, setCoaches] = useState<any[]>([])
@@ -101,7 +106,26 @@ export default function BranchesList() {
 
         // Handle different response formats
         const branchesData = data.branches || data || []
+        console.log("Processed branches data:", branchesData)
+
+        // Log statistics for debugging
+        branchesData.forEach((branch: Branch, index: number) => {
+          console.log(`Branch ${index + 1} (${branch.branch?.name}):`, {
+            id: branch.id,
+            statistics: branch.statistics,
+            manager_id: branch.manager_id,
+            branch_admins: branch.assignments?.branch_admins?.length || 0
+          })
+        })
+
         setBranches(branchesData)
+
+        // If statistics are not included, try to fetch them separately
+        const branchesWithoutStats = branchesData.filter((branch: Branch) => !branch.statistics)
+        if (branchesWithoutStats.length > 0) {
+          console.log(`Fetching statistics for ${branchesWithoutStats.length} branches...`)
+          await fetchBranchStatistics(branchesWithoutStats, token)
+        }
 
       } catch (error) {
         console.error("Error fetching branches:", error)
@@ -113,6 +137,54 @@ export default function BranchesList() {
 
     fetchBranches()
   }, [])
+
+  // Fetch statistics for branches that don't have them
+  const fetchBranchStatistics = async (branchesWithoutStats: Branch[], token: string) => {
+    try {
+      setLoadingStats(true)
+
+      const statsPromises = branchesWithoutStats.map(async (branch) => {
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches/${branch.id}/stats`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          if (response.ok) {
+            const statsData = await response.json()
+            return {
+              branchId: branch.id,
+              statistics: statsData.statistics
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching stats for branch ${branch.id}:`, error)
+        }
+        return null
+      })
+
+      const statsResults = await Promise.all(statsPromises)
+
+      // Update branches with fetched statistics
+      setBranches(prevBranches =>
+        prevBranches.map(branch => {
+          const statsResult = statsResults.find(result => result?.branchId === branch.id)
+          if (statsResult) {
+            return { ...branch, statistics: statsResult.statistics }
+          }
+          return branch
+        })
+      )
+
+    } catch (error) {
+      console.error("Error fetching branch statistics:", error)
+    } finally {
+      setLoadingStats(false)
+    }
+  }
 
   // Fetch coaches for assignment modal
   const fetchCoaches = async () => {
@@ -226,7 +298,7 @@ export default function BranchesList() {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches/${branchToDelete}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches/${branchToDelete}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -280,7 +352,7 @@ export default function BranchesList() {
     return (
       branch.branch?.name?.toLowerCase().includes(searchLower) ||
       branch.id?.toLowerCase().includes(searchLower) ||
-      branch.branch?.address?.street?.toLowerCase().includes(searchLower) ||
+      branch.branch?.address?.line1?.toLowerCase().includes(searchLower) ||
       branch.branch?.address?.city?.toLowerCase().includes(searchLower) ||
       branch.branch?.address?.state?.toLowerCase().includes(searchLower) ||
       branch.branch?.email?.toLowerCase().includes(searchLower) ||
@@ -337,16 +409,25 @@ export default function BranchesList() {
                   Branch Location
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  No.of Active students
+                  <div className="flex items-center">
+                    <span>Active Students</span>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full ml-2"></div>
+                  </div>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  No.of Courses
+                  <div className="flex items-center">
+                    <span>Courses Offered</span>
+                    <div className="w-2 h-2 bg-green-500 rounded-full ml-2"></div>
+                  </div>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Branch Admin
+                  Branch Manager
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  No.of Masters
+                  <div className="flex items-center">
+                    <span>Assigned Coaches</span>
+                    <div className="w-2 h-2 bg-purple-500 rounded-full ml-2"></div>
+                  </div>
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Accessories Available
@@ -389,8 +470,32 @@ export default function BranchesList() {
                     <td className="px-4 py-4 text-sm text-gray-900 max-w-xs">
                       {`${branch.branch.address.line1}, ${branch.branch.address.city}, ${branch.branch.address.state}`}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">N/A</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.operational_details.courses_offered.length}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center">
+                        {loadingStats && !branch.statistics ? (
+                          <div className="animate-pulse bg-gray-200 rounded-full px-2.5 py-0.5 text-xs">
+                            Loading...
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {branch.statistics?.student_count ?? 0} Students
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center">
+                        {loadingStats && !branch.statistics ? (
+                          <div className="animate-pulse bg-gray-200 rounded-full px-2.5 py-0.5 text-xs">
+                            Loading...
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {branch.statistics?.course_count ?? branch.operational_details.courses_offered.length} Courses
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="text-sm text-gray-900">{branch.manager_id || 'Not Assigned'}</span>
@@ -399,7 +504,19 @@ export default function BranchesList() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">N/A</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center">
+                        {loadingStats && !branch.statistics ? (
+                          <div className="animate-pulse bg-gray-200 rounded-full px-2.5 py-0.5 text-xs">
+                            Loading...
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            {branch.statistics?.coach_count ?? 0} Coaches
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       {branch.assignments.accessories_available ? 'Yes' : 'No'}
                     </td>
@@ -436,7 +553,7 @@ export default function BranchesList() {
                               const token = TokenManager.getToken()
                               if (!token) return
 
-                              const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches/${branch.id}`, {
+                              const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches/${branch.id}`, {
                                 method: 'PUT',
                                 headers: {
                                   'Authorization': `Bearer ${token}`,

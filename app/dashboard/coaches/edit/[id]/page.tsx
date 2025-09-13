@@ -77,6 +77,17 @@ export default function EditCoachPage() {
   const [isLoadingBranches, setIsLoadingBranches] = useState(true)
   const [isLoadingCourses, setIsLoadingCourses] = useState(true)
 
+  // Debug effect to log branch selection state
+  useEffect(() => {
+    if (!isLoading && !isLoadingBranches) {
+      console.log("Branch selection debug:", {
+        formDataBranch: formData.branch,
+        availableBranches: branches.map(b => ({ id: b.id, name: b.name })),
+        branchMatch: branches.find(b => b.id === formData.branch)
+      })
+    }
+  }, [formData.branch, branches, isLoading, isLoadingBranches])
+
   // Fetch coach data and dynamic options on component mount
   useEffect(() => {
     const fetchAllData = async () => {
@@ -118,11 +129,17 @@ export default function EditCoachPage() {
           const coachData = await coachResponse.value.json()
 
           // Map API data to form structure
+          console.log("Loading coach data:", {
+            coachId: coachData.id,
+            currentBranchId: coachData.branch_id,
+            coachData: coachData
+          })
           setFormData({
             firstName: coachData.personal_info?.first_name || "",
             lastName: coachData.personal_info?.last_name || "",
             email: coachData.contact_info?.email || "",
             phone: coachData.contact_info?.phone || "",
+            password: "", // Keep empty for edit form - user can optionally change it
             gender: coachData.personal_info?.gender || "",
             dateOfBirth: coachData.personal_info?.date_of_birth?.split('T')[0] || "",
             address: coachData.address_info?.address || "",
@@ -136,8 +153,8 @@ export default function EditCoachPage() {
             qualifications: coachData.professional_info?.education_qualification || "",
             certifications: (coachData.professional_info?.certifications || []).join(', '),
             specializations: coachData.areas_of_expertise || [],
-            // These fields might not exist in the GET response, add them if they do
-            branch: coachData.assignment_details?.branch_id || "",
+            // Branch assignment from coach data
+            branch: coachData.branch_id || "",
             courses: coachData.assignment_details?.courses || [],
             salary: coachData.assignment_details?.salary?.toString() || "",
             joinDate: coachData.assignment_details?.join_date?.split('T')[0] || "",
@@ -193,6 +210,7 @@ export default function EditCoachPage() {
             name: branch.branch?.name || branch.name
           }))
           setBranches(branchesList)
+          console.log("Loaded branches:", branchesList)
         } else {
           // Fallback to hardcoded branches if API fails
           setBranches([
@@ -357,10 +375,15 @@ export default function EditCoachPage() {
           designation_id: formData.designation,
           certifications: formData.certifications ? formData.certifications.split(',').map(cert => cert.trim()) : []
         },
-        areas_of_expertise: formData.specializations
+        areas_of_expertise: formData.specializations,
+        branch_id: formData.branch || null  // Include branch assignment
       }
 
       console.log("Updating coach with data:", coachData)
+      console.log("Branch assignment:", {
+        selectedBranchId: formData.branch,
+        availableBranches: branches.map(b => ({ id: b.id, name: b.name }))
+      })
 
       const token = TokenManager.getToken()
       if (!token) {
@@ -762,21 +785,34 @@ export default function EditCoachPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="branch">Assign to Branch</Label>
-                  <Select 
-                    value={formData.branch} 
-                    onValueChange={(value) => setFormData({ ...formData, branch: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branches.map((branch) => (
-                        <SelectItem key={branch.id || branch} value={branch.name || branch}>
-                          {branch.name || branch}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {isLoadingBranches ? (
+                    <div className="flex items-center justify-center py-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+                      <span className="ml-2 text-sm text-gray-600">Loading branches...</span>
+                    </div>
+                  ) : (
+                    <Select
+                      value={formData.branch && branches.some(b => b.id === formData.branch) ? formData.branch : ""}
+                      onValueChange={(value) => setFormData({ ...formData, branch: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.length === 0 ? (
+                          <div className="p-4 text-center text-gray-500">
+                            <p>No branches available</p>
+                          </div>
+                        ) : (
+                          branches.map((branch) => (
+                            <SelectItem key={branch.id || branch} value={branch.id || branch}>
+                              {branch.name || branch}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <div className="space-y-2">
