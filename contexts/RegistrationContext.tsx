@@ -87,6 +87,7 @@ export const RegistrationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }
 
   const getApiPayload = () => {
+    // Separate user data from course enrollment data
     return {
       email: registrationData.email,
       password: registrationData.password || undefined,
@@ -99,6 +100,7 @@ export const RegistrationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       is_active: true,
       date_of_birth: registrationData.dob || undefined,
       gender: registrationData.gender || undefined,
+      // DEPRECATED: Keep for backward compatibility during migration
       course: registrationData.category_id && registrationData.course_id && registrationData.duration ? {
         category_id: String(registrationData.category_id),
         course_id: String(registrationData.course_id),
@@ -111,12 +113,27 @@ export const RegistrationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }
 
+  // Get enrollment data separately for payment processing
+  const getEnrollmentData = () => {
+    if (!registrationData.category_id || !registrationData.course_id || !registrationData.branch_id) {
+      return null
+    }
+
+    return {
+      course_id: String(registrationData.course_id),
+      branch_id: String(registrationData.branch_id),
+      category_id: String(registrationData.category_id),
+      duration: String(registrationData.duration)
+    }
+  }
+
   return (
     <RegistrationContext.Provider value={{
       registrationData,
       updateRegistrationData,
       clearRegistrationData,
-      getApiPayload
+      getApiPayload,
+      getEnrollmentData
     }}>
       {children}
     </RegistrationContext.Provider>

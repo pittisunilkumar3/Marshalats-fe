@@ -507,6 +507,7 @@ export default function CreateStudent() {
         }
       } else {
         // Use regular registration endpoint for students without course/branch
+        // Separate user data from course enrollment data
         const apiPayload = {
           email: formData.email,
           phone: `${formData.countryCode}${formData.contactNumber}`,
@@ -517,6 +518,7 @@ export default function CreateStudent() {
           date_of_birth: formData.dob || undefined,
           gender: formData.gender || undefined,
           biometric_id: formData.biometricId || undefined,
+          // DEPRECATED: Keep for backward compatibility during migration
           course: formData.course ? {
             category_id: formData.category,
             course_id: formData.course,
