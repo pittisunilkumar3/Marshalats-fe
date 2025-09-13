@@ -129,7 +129,7 @@ export default function EditStudent() {
         if (!token) throw new Error("Authentication token not found.")
 
         // Fetch student data
-        const studentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${studentId}`, {
+        const studentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${studentId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
         if (!studentResponse.ok) {
@@ -142,18 +142,22 @@ export default function EditStudent() {
         const studentData = studentResponseData.user || studentResponseData
 
         // Load dynamic data from APIs
-        await Promise.all([
+        const [locationsData, branchesData, coursesData, categoriesData] = await Promise.all([
           // Load locations
           (async () => {
             try {
               setIsLoadingLocations(true)
-              const locationsResponse = await fetch('http://localhost:8003/api/locations/public/details?active_only=true')
+              const locationsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations/public/details?active_only=true`)
               if (locationsResponse.ok) {
                 const locationsData = await locationsResponse.json()
-                setLocations(locationsData.locations || [])
+                const locations = locationsData.locations || []
+                setLocations(locations)
+                return locations
               }
+              return []
             } catch (error) {
               console.error('Error loading locations:', error)
+              return []
             } finally {
               setIsLoadingLocations(false)
             }
@@ -163,7 +167,7 @@ export default function EditStudent() {
           (async () => {
             try {
               setIsLoadingBranches(true)
-              const branchesResponse = await fetch('http://localhost:8003/api/locations/public/with-branches?active_only=true')
+              const branchesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations/public/with-branches?active_only=true`)
               if (branchesResponse.ok) {
                 const branchesData = await branchesResponse.json()
 
@@ -177,9 +181,12 @@ export default function EditStudent() {
                   })
                 }
                 setBranches(allBranches)
+                return allBranches
               }
+              return []
             } catch (error) {
               console.error('Error loading branches:', error)
+              return []
             } finally {
               setIsLoadingBranches(false)
             }
@@ -189,15 +196,18 @@ export default function EditStudent() {
           (async () => {
             try {
               setIsLoadingCourses(true)
-              const coursesResponse = await fetch('http://localhost:8003/courses/public/all')
+              const coursesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses/public/all`)
               if (coursesResponse.ok) {
                 const coursesData = await coursesResponse.json()
                 const allCourses = coursesData.courses || []
                 setCourses(allCourses)
                 setFilteredCourses(allCourses)
+                return allCourses
               }
+              return []
             } catch (error) {
               console.error('Error loading courses:', error)
+              return []
             } finally {
               setIsLoadingCourses(false)
             }
@@ -207,20 +217,24 @@ export default function EditStudent() {
           (async () => {
             try {
               setIsLoadingCategories(true)
-              const categoriesResponse = await fetch('http://localhost:8003/api/categories/public/details?active_only=true')
+              const categoriesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories/public/details?active_only=true`)
               if (categoriesResponse.ok) {
                 const categoriesData = await categoriesResponse.json()
-                setCategories(categoriesData.categories || [])
+                const categories = categoriesData.categories || []
+                setCategories(categories)
+                return categories
               }
+              return []
             } catch (error) {
               console.error('Error loading categories:', error)
+              return []
             } finally {
               setIsLoadingCategories(false)
             }
           })()
         ])
 
-        // Helper function to find matching option by name/code
+        // Helper function to find matching option by name/code using the loaded data
         const findOptionByIdentifier = (options: any[], identifier: string, searchFields: string[] = ['name', 'code', 'title']) => {
           if (!identifier || !options.length) return ""
 
@@ -246,7 +260,7 @@ export default function EditStudent() {
           return partialMatch ? partialMatch.id : ""
         }
 
-        // Map student data to form data with proper ID resolution
+        // Map student data to form data with proper ID resolution using the loaded data
         const mappedFormData = {
           firstName: studentData.first_name || "",
           lastName: studentData.last_name || "",
@@ -263,18 +277,25 @@ export default function EditStudent() {
           state: studentData.address?.state || "",
           zipCode: studentData.address?.pincode || "",
           country: studentData.address?.country || "India",
-          location: findOptionByIdentifier(locations, studentData.branch?.location_id || ""),
-          branch: findOptionByIdentifier(branches, studentData.branch?.branch_id || ""),
-          category: findOptionByIdentifier(categories, studentData.course?.category_id || ""),
-          course: findOptionByIdentifier(courses, studentData.course?.course_id || "", ['title', 'code', 'name']),
+          location: findOptionByIdentifier(locationsData, studentData.branch?.location_id || ""),
+          branch: findOptionByIdentifier(branchesData, studentData.branch?.branch_id || ""),
+          category: findOptionByIdentifier(categoriesData, studentData.course?.category_id || ""),
+          course: findOptionByIdentifier(coursesData, studentData.course?.course_id || "", ['title', 'code', 'name']),
           duration: studentData.course?.duration || "",
           emergencyContactName: studentData.emergency_contact?.name || "",
           emergencyContactPhone: studentData.emergency_contact?.phone || "",
           emergencyContactRelation: studentData.emergency_contact?.relationship || "",
         }
 
+        console.log("Student data:", studentData)
+        console.log("Available locations:", locationsData)
+        console.log("Available branches:", branchesData)
+        console.log("Available categories:", categoriesData)
+        console.log("Available courses:", coursesData)
+        console.log("Mapped form data:", mappedFormData)
+
         setFormData(mappedFormData)
-        
+
         if (studentData.date_of_birth) {
           setSelectedDate(new Date(studentData.date_of_birth))
         }
@@ -386,7 +407,7 @@ export default function EditStudent() {
         } : undefined
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${studentId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users/${studentId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

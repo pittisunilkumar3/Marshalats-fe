@@ -98,6 +98,8 @@ export default function AddCoachPage() {
   const { toast } = useToast()
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [createdCoachId, setCreatedCoachId] = useState<string | null>(null)
 
   // API data state
   const [branches, setBranches] = useState<Branch[]>([])
@@ -111,6 +113,7 @@ export default function AddCoachPage() {
     lastName: "",
     email: "",
     phone: "",
+    password: "",
     gender: "",
     dateOfBirth: "",
     address: "",
@@ -119,25 +122,25 @@ export default function AddCoachPage() {
     state: "",
     zipCode: "",
     country: "India",
-    
+
     // Professional Information
     designation: "",
     experience: "",
     qualifications: "",
     certifications: "",
     specializations: [] as string[],
-    
+
     // Assignment Details
     branch: "",
     courses: [] as string[],
     salary: "",
     joinDate: "",
-    
+
     // Emergency Contact
     emergencyContactName: "",
     emergencyContactPhone: "",
     emergencyContactRelation: "",
-    
+
     // Additional Information
     achievements: "",
     notes: "",
@@ -327,6 +330,52 @@ export default function AddCoachPage() {
     }))
   }
 
+  const sendCredentialsEmail = async () => {
+    if (!createdCoachId) {
+      toast({
+        title: "Error",
+        description: "No coach ID available for sending credentials",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSendingEmail(true)
+    try {
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found")
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/${createdCoachId}/send-credentials`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || 'Failed to send credentials email')
+      }
+
+      toast({
+        title: "Success",
+        description: "Login credentials have been sent to the coach's email address",
+      })
+    } catch (error) {
+      console.error("Error sending credentials email:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send credentials email",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSendingEmail(false)
+    }
+  }
+
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {}
 
@@ -334,6 +383,13 @@ export default function AddCoachPage() {
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
     if (!formData.email.trim()) newErrors.email = "Email is required"
     if (!formData.phone.trim()) newErrors.phone = "Phone number is required"
+    if (!formData.password.trim()) {
+      newErrors.password = "Password is required"
+    } else if (formData.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters long"
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(formData.password)) {
+      newErrors.password = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+    }
     if (!formData.gender) newErrors.gender = "Gender is required"
     if (!formData.designation) newErrors.designation = "Designation is required"
     if (!formData.experience) newErrors.experience = "Experience is required"
@@ -365,7 +421,7 @@ export default function AddCoachPage() {
           email: formData.email,
           country_code: "+91", // Default for India
           phone: formData.phone,
-          password: "TempPassword123!" // Temporary password - should be changed on first login
+          password: formData.password
         },
         address_info: {
           address: formData.address,
@@ -402,7 +458,7 @@ export default function AddCoachPage() {
       }
 
       // Call the backend API
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -418,13 +474,18 @@ export default function AddCoachPage() {
       }
 
       console.log("Coach created successfully:", result)
+
+      // Store the created coach ID for sending credentials
+      if (result.coach && result.coach.id) {
+        setCreatedCoachId(result.coach.id)
+      } else if (result.id) {
+        setCreatedCoachId(result.id)
+      }
+
       setShowSuccessPopup(true)
 
-      // Reset form after successful submission
-      setTimeout(() => {
-        setShowSuccessPopup(false)
-        router.push("/dashboard/coaches")
-      }, 2000)
+      // Reset form after successful submission (removed auto-redirect to allow email sending)
+      // User can manually navigate using the buttons in the success popup
 
     } catch (error) {
       console.error("Error creating coach:", error)
@@ -504,6 +565,22 @@ export default function AddCoachPage() {
                     className={errors.email ? "border-red-500" : ""}
                   />
                   {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Enter secure password"
+                    className={errors.password ? "border-red-500" : ""}
+                  />
+                  {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
+                  <p className="text-xs text-gray-500">
+                    Password must be at least 8 characters with uppercase, lowercase, number, and special character
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -972,8 +1049,35 @@ export default function AddCoachPage() {
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Coach Created Successfully!</h3>
-            <p className="text-gray-600 mb-4">The new coach has been added to your academy.</p>
-            <div className="w-6 h-6 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-gray-600 mb-6">The new coach has been added to your academy.</p>
+
+            <div className="space-y-3">
+              <Button
+                onClick={sendCredentialsEmail}
+                disabled={isSendingEmail || !createdCoachId}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isSendingEmail ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Sending Email...
+                  </>
+                ) : (
+                  "Send Credentials via Email"
+                )}
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setShowSuccessPopup(false)
+                  router.push("/dashboard/coaches")
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                Continue to Coaches List
+              </Button>
+            </div>
           </div>
         </div>
       )}

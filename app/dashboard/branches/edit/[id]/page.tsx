@@ -112,100 +112,151 @@ export default function EditBranch() {
     }
   })
 
-  // Available options
-  const availableManagers = [
-    { id: "manager-uuid-1", name: "Ravi Kumar" },
-    { id: "manager-uuid-2", name: "Priya Sharma" },
-    { id: "manager-uuid-3", name: "Amit Singh" },
-    { id: "manager-uuid-4", name: "Sunita Patel" }
-  ]
+  // Dynamic data from APIs
+  const [availableManagers, setAvailableManagers] = useState<any[]>([])
+  const [availableCourses, setAvailableCourses] = useState<any[]>([])
+  const [availableAdmins, setAvailableAdmins] = useState<any[]>([])
 
-  const availableCourses = [
-    { id: "course-uuid-1", name: "Kung Fu Basics" },
-    { id: "course-uuid-2", name: "Advanced Karate" },
-    { id: "course-uuid-3", name: "Taekwondo for Kids" },
-    { id: "course-uuid-4", name: "Boxing Fundamentals" }
-  ]
-
-  const availableAdmins = [
-    { id: "admin-uuid-1", name: "John Doe" },
-    { id: "admin-uuid-2", name: "Jane Smith" },
-    { id: "admin-uuid-3", name: "Mike Johnson" }
-  ]
+  // Loading states for dynamic data
+  const [isLoadingManagers, setIsLoadingManagers] = useState(true)
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true)
+  const [isLoadingAdmins, setIsLoadingAdmins] = useState(true)
 
   const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-  // Fetch branch data on component mount
+  // Fetch branch data and dynamic options on component mount
   useEffect(() => {
-    const fetchBranchData = async () => {
+    const fetchAllData = async () => {
       try {
         setIsLoading(true)
-        
+
         const token = TokenManager.getToken()
         if (!token) {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches/${branchId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        // Fetch branch data and dynamic options in parallel
+        const [branchResponse, managersResponse, coursesResponse, adminsResponse] = await Promise.allSettled([
+          // Fetch branch data
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches/${branchId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          // Fetch managers (coaches with manager designation)
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches?active_only=true&limit=100`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          // Fetch courses
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses?active_only=true&limit=100`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          // Fetch admins (users with admin role)
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/users?role=admin&limit=100`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+        ])
 
-        if (!response.ok) {
-          if (response.status === 404) {
+        // Handle branch data
+        if (branchResponse.status === 'fulfilled' && branchResponse.value.ok) {
+          const branchData = await branchResponse.value.json()
+
+          // Map API data to form structure
+          setFormData({
+            branch: {
+              name: branchData.branch?.name || "",
+              code: branchData.branch?.code || "",
+              email: branchData.branch?.email || "",
+              phone: branchData.branch?.phone || "",
+              address: {
+                line1: branchData.branch?.address?.line1 || "",
+                area: branchData.branch?.address?.area || "",
+                city: branchData.branch?.address?.city || "",
+                state: branchData.branch?.address?.state || "",
+                pincode: branchData.branch?.address?.pincode || "",
+                country: branchData.branch?.address?.country || "India"
+              }
+            },
+            manager_id: branchData.manager_id || "",
+            operational_details: {
+              courses_offered: branchData.operational_details?.courses_offered || [],
+              timings: branchData.operational_details?.timings || [],
+              holidays: branchData.operational_details?.holidays || []
+            },
+            assignments: {
+              accessories_available: branchData.assignments?.accessories_available || false,
+              courses: branchData.assignments?.courses || [],
+              branch_admins: branchData.assignments?.branch_admins || []
+            },
+            bank_details: {
+              bank_name: branchData.bank_details?.bank_name || "",
+              account_number: branchData.bank_details?.account_number || "",
+              upi_id: branchData.bank_details?.upi_id || ""
+            }
+          })
+        } else {
+          if (branchResponse.status === 'fulfilled' && branchResponse.value.status === 404) {
             throw new Error("Branch not found")
           }
-          throw new Error(`Failed to fetch branch data: ${response.status}`)
+          throw new Error("Failed to fetch branch data")
         }
 
-        const branchData = await response.json()
-        
-        // Map API data to form structure
-        setFormData({
-          branch: {
-            name: branchData.branch?.name || "",
-            code: branchData.branch?.code || "",
-            email: branchData.branch?.email || "",
-            phone: branchData.branch?.phone || "",
-            address: {
-              line1: branchData.branch?.address?.line1 || "",
-              area: branchData.branch?.address?.area || "",
-              city: branchData.branch?.address?.city || "",
-              state: branchData.branch?.address?.state || "",
-              pincode: branchData.branch?.address?.pincode || "",
-              country: branchData.branch?.address?.country || "India"
-            }
-          },
-          manager_id: branchData.manager_id || "",
-          operational_details: {
-            courses_offered: branchData.operational_details?.courses_offered || [],
-            timings: branchData.operational_details?.timings || [],
-            holidays: branchData.operational_details?.holidays || []
-          },
-          assignments: {
-            accessories_available: branchData.assignments?.accessories_available || false,
-            courses: branchData.assignments?.courses || [],
-            branch_admins: branchData.assignments?.branch_admins || []
-          },
-          bank_details: {
-            bank_name: branchData.bank_details?.bank_name || "",
-            account_number: branchData.bank_details?.account_number || "",
-            upi_id: branchData.bank_details?.upi_id || ""
-          }
-        })
+        // Handle managers data
+        if (managersResponse.status === 'fulfilled' && managersResponse.value.ok) {
+          const managersData = await managersResponse.value.json()
+          const managers = (managersData.coaches || []).map((coach: any) => ({
+            id: coach.id,
+            name: coach.full_name || `${coach.personal_info?.first_name || ''} ${coach.personal_info?.last_name || ''}`.trim()
+          }))
+          setAvailableManagers(managers)
+        }
+        setIsLoadingManagers(false)
+
+        // Handle courses data
+        if (coursesResponse.status === 'fulfilled' && coursesResponse.value.ok) {
+          const coursesData = await coursesResponse.value.json()
+          const courses = (coursesData.courses || []).map((course: any) => ({
+            id: course.id,
+            name: course.title || course.name
+          }))
+          setAvailableCourses(courses)
+        }
+        setIsLoadingCourses(false)
+
+        // Handle admins data
+        if (adminsResponse.status === 'fulfilled' && adminsResponse.value.ok) {
+          const adminsData = await adminsResponse.value.json()
+          const admins = (adminsData.users || []).map((admin: any) => ({
+            id: admin.id,
+            name: admin.full_name || `${admin.first_name || ''} ${admin.last_name || ''}`.trim()
+          }))
+          setAvailableAdmins(admins)
+        }
+        setIsLoadingAdmins(false)
 
       } catch (error) {
-        console.error("Error fetching branch data:", error)
-        setErrors({ general: error instanceof Error ? error.message : 'Failed to load branch data' })
+        console.error("Error fetching data:", error)
+        setErrors({ general: error instanceof Error ? error.message : 'Failed to load data' })
+        setIsLoadingManagers(false)
+        setIsLoadingCourses(false)
+        setIsLoadingAdmins(false)
       } finally {
         setIsLoading(false)
       }
     }
 
     if (branchId) {
-      fetchBranchData()
+      fetchAllData()
     }
   }, [branchId])
 
@@ -354,7 +405,7 @@ export default function EditBranch() {
         return
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/branches/${branchId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches/${branchId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -676,16 +727,23 @@ export default function EditBranch() {
                     <Select
                       value={formData.manager_id}
                       onValueChange={(value) => setFormData({ ...formData, manager_id: value })}
+                      disabled={isLoadingManagers}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a manager" />
+                        <SelectValue placeholder={isLoadingManagers ? "Loading managers..." : "Select a manager"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableManagers.map((manager) => (
-                          <SelectItem key={manager.id} value={manager.id}>
-                            {manager.name}
-                          </SelectItem>
-                        ))}
+                        {availableManagers.length > 0 ? (
+                          availableManagers.map((manager) => (
+                            <SelectItem key={manager.id} value={manager.id}>
+                              {manager.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="p-4 text-center text-gray-500">
+                            <p className="text-sm">No managers available</p>
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -705,33 +763,45 @@ export default function EditBranch() {
                 {/* Courses Offered */}
                 <div className="space-y-2">
                   <Label>Courses Offered *</Label>
-                  <div className="grid grid-cols-1 gap-3 max-h-48 overflow-y-auto">
-                    {availableCourses.map((course) => (
-                      <div key={course.name} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`course-offered-${course.name}`}
-                          checked={formData.operational_details.courses_offered.includes(course.name)}
-                          onCheckedChange={() => {
-                            const isSelected = formData.operational_details.courses_offered.includes(course.name)
-                            const updatedCourses = isSelected
-                              ? formData.operational_details.courses_offered.filter(c => c !== course.name)
-                              : [...formData.operational_details.courses_offered, course.name]
+                  {isLoadingCourses ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <p className="text-sm">Loading courses...</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 max-h-48 overflow-y-auto">
+                      {availableCourses.length > 0 ? (
+                        availableCourses.map((course) => (
+                          <div key={course.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`course-offered-${course.id}`}
+                              checked={formData.operational_details.courses_offered.includes(course.name)}
+                              onCheckedChange={() => {
+                                const isSelected = formData.operational_details.courses_offered.includes(course.name)
+                                const updatedCourses = isSelected
+                                  ? formData.operational_details.courses_offered.filter(c => c !== course.name)
+                                  : [...formData.operational_details.courses_offered, course.name]
 
-                            setFormData({
-                              ...formData,
-                              operational_details: {
-                                ...formData.operational_details,
-                                courses_offered: updatedCourses
-                              }
-                            })
-                          }}
-                        />
-                        <Label htmlFor={`course-offered-${course.name}`} className="text-sm cursor-pointer">
-                          {course.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
+                                setFormData({
+                                  ...formData,
+                                  operational_details: {
+                                    ...formData.operational_details,
+                                    courses_offered: updatedCourses
+                                  }
+                                })
+                              }}
+                            />
+                            <Label htmlFor={`course-offered-${course.id}`} className="text-sm cursor-pointer">
+                              {course.name}
+                            </Label>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">
+                          <p className="text-sm">No courses available</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {errors.coursesOffered && <p className="text-red-500 text-sm">{errors.coursesOffered}</p>}
 
                   {formData.operational_details.courses_offered.length > 0 && (
@@ -931,33 +1001,45 @@ export default function EditBranch() {
                 {/* Course Assignments */}
                 <div className="space-y-2">
                   <Label>Assign Courses to Branch</Label>
-                  <div className="grid grid-cols-1 gap-3 max-h-40 overflow-y-auto">
-                    {availableCourses.map((course) => (
-                      <div key={course.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`course-assign-${course.id}`}
-                          checked={formData.assignments.courses.includes(course.id)}
-                          onCheckedChange={() => {
-                            const isSelected = formData.assignments.courses.includes(course.id)
-                            const updatedCourses = isSelected
-                              ? formData.assignments.courses.filter(c => c !== course.id)
-                              : [...formData.assignments.courses, course.id]
+                  {isLoadingCourses ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <p className="text-sm">Loading courses...</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 max-h-40 overflow-y-auto">
+                      {availableCourses.length > 0 ? (
+                        availableCourses.map((course) => (
+                          <div key={course.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`course-assign-${course.id}`}
+                              checked={formData.assignments.courses.includes(course.id)}
+                              onCheckedChange={() => {
+                                const isSelected = formData.assignments.courses.includes(course.id)
+                                const updatedCourses = isSelected
+                                  ? formData.assignments.courses.filter(c => c !== course.id)
+                                  : [...formData.assignments.courses, course.id]
 
-                            setFormData({
-                              ...formData,
-                              assignments: {
-                                ...formData.assignments,
-                                courses: updatedCourses
-                              }
-                            })
-                          }}
-                        />
-                        <Label htmlFor={`course-assign-${course.id}`} className="text-sm cursor-pointer">
-                          {course.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
+                                setFormData({
+                                  ...formData,
+                                  assignments: {
+                                    ...formData.assignments,
+                                    courses: updatedCourses
+                                  }
+                                })
+                              }}
+                            />
+                            <Label htmlFor={`course-assign-${course.id}`} className="text-sm cursor-pointer">
+                              {course.name}
+                            </Label>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">
+                          <p className="text-sm">No courses available</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {formData.assignments.courses.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2 max-h-24 overflow-y-auto">
@@ -992,33 +1074,45 @@ export default function EditBranch() {
                 {/* Branch Admins */}
                 <div className="space-y-2">
                   <Label>Branch Administrators</Label>
-                  <div className="grid grid-cols-1 gap-3 max-h-32 overflow-y-auto">
-                    {availableAdmins.map((admin) => (
-                      <div key={admin.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`admin-${admin.id}`}
-                          checked={formData.assignments.branch_admins.includes(admin.id)}
-                          onCheckedChange={() => {
-                            const isSelected = formData.assignments.branch_admins.includes(admin.id)
-                            const updatedAdmins = isSelected
-                              ? formData.assignments.branch_admins.filter(a => a !== admin.id)
-                              : [...formData.assignments.branch_admins, admin.id]
+                  {isLoadingAdmins ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <p className="text-sm">Loading administrators...</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 max-h-32 overflow-y-auto">
+                      {availableAdmins.length > 0 ? (
+                        availableAdmins.map((admin) => (
+                          <div key={admin.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`admin-${admin.id}`}
+                              checked={formData.assignments.branch_admins.includes(admin.id)}
+                              onCheckedChange={() => {
+                                const isSelected = formData.assignments.branch_admins.includes(admin.id)
+                                const updatedAdmins = isSelected
+                                  ? formData.assignments.branch_admins.filter(a => a !== admin.id)
+                                  : [...formData.assignments.branch_admins, admin.id]
 
-                            setFormData({
-                              ...formData,
-                              assignments: {
-                                ...formData.assignments,
-                                branch_admins: updatedAdmins
-                              }
-                            })
-                          }}
-                        />
-                        <Label htmlFor={`admin-${admin.id}`} className="text-sm cursor-pointer">
-                          {admin.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
+                                setFormData({
+                                  ...formData,
+                                  assignments: {
+                                    ...formData.assignments,
+                                    branch_admins: updatedAdmins
+                                  }
+                                })
+                              }}
+                            />
+                            <Label htmlFor={`admin-${admin.id}`} className="text-sm cursor-pointer">
+                              {admin.name}
+                            </Label>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">
+                          <p className="text-sm">No administrators available</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {formData.assignments.branch_admins.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">

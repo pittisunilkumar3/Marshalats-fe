@@ -22,6 +22,7 @@ export default function EditCoachPage() {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
 
   const [formData, setFormData] = useState({
     // Personal Information
@@ -29,6 +30,7 @@ export default function EditCoachPage() {
     lastName: "",
     email: "",
     phone: "",
+    password: "", // Optional password field for updates
     gender: "",
     dateOfBirth: "",
     address: "",
@@ -37,25 +39,25 @@ export default function EditCoachPage() {
     state: "",
     zipCode: "",
     country: "India",
-    
+
     // Professional Information
     designation: "",
     experience: "",
     qualifications: "",
     certifications: "",
     specializations: [] as string[],
-    
+
     // Assignment Details
     branch: "",
     courses: [] as string[],
     salary: "",
     joinDate: "",
-    
+
     // Emergency Contact
     emergencyContactName: "",
     emergencyContactPhone: "",
     emergencyContactRelation: "",
-    
+
     // Additional Information
     achievements: "",
     notes: "",
@@ -63,122 +65,182 @@ export default function EditCoachPage() {
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
-  // Available options from add-coach page
-  const designations = [
-    "Senior Master",
-    "Master Instructor", 
-    "Senior Instructor",
-    "Instructor",
-    "Assistant Instructor",
-    "Head Coach",
-    "Coach",
-    "Assistant Coach"
-  ]
+  // Dynamic data states
+  const [designations, setDesignations] = useState<string[]>([])
+  const [specializations, setSpecializations] = useState<string[]>([])
+  const [branches, setBranches] = useState<any[]>([])
+  const [courses, setCourses] = useState<string[]>([])
 
-  const specializations = [
-    "Taekwondo",
-    "Karate", 
-    "Kung Fu",
-    "Kick Boxing",
-    "Self Defense",
-    "Mixed Martial Arts",
-    "Judo",
-    "Jiu-Jitsu",
-    "Muay Thai",
-    "Boxing",
-    "Kuchipudi Dance",
-    "Bharatanatyam",
-    "Gymnastics",
-    "Yoga"
-  ]
+  // Loading states for dynamic data
+  const [isLoadingDesignations, setIsLoadingDesignations] = useState(true)
+  const [isLoadingSpecializations, setIsLoadingSpecializations] = useState(true)
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true)
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true)
 
-  const branches = [
-    "Madhapur Branch",
-    "Hitech City Branch", 
-    "Gachibowli Branch",
-    "Kondapur Branch",
-    "Kukatpally Branch"
-  ]
-
-  const courses = [
-    "Taekwondo Basics",
-    "Advanced Karate",
-    "Kung Fu Fundamentals",
-    "Self Defense for Women",
-    "Mixed Martial Arts",
-    "Kids Martial Arts",
-    "Adult Fitness Boxing",
-    "Traditional Dance Forms"
-  ]
-
-  // Fetch coach data on component mount
+  // Fetch coach data and dynamic options on component mount
   useEffect(() => {
-    const fetchCoachData = async () => {
+    const fetchAllData = async () => {
       try {
         setIsLoading(true)
-        
+
         const token = TokenManager.getToken()
         if (!token) {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches/${coachId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        // Fetch all data in parallel
+        const [coachResponse, branchesResponse, coursesResponse] = await Promise.allSettled([
+          // Fetch coach data
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/${coachId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          // Fetch branches
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches?active_only=true&limit=100`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          // Fetch courses
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses?active_only=true&limit=100`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+        ])
 
-        if (!response.ok) {
-          if (response.status === 404) {
+        // Handle coach data
+        if (coachResponse.status === 'fulfilled' && coachResponse.value.ok) {
+          const coachData = await coachResponse.value.json()
+
+          // Map API data to form structure
+          setFormData({
+            firstName: coachData.personal_info?.first_name || "",
+            lastName: coachData.personal_info?.last_name || "",
+            email: coachData.contact_info?.email || "",
+            phone: coachData.contact_info?.phone || "",
+            gender: coachData.personal_info?.gender || "",
+            dateOfBirth: coachData.personal_info?.date_of_birth?.split('T')[0] || "",
+            address: coachData.address_info?.address || "",
+            area: coachData.address_info?.area || "",
+            city: coachData.address_info?.city || "",
+            state: coachData.address_info?.state || "",
+            zipCode: coachData.address_info?.zip_code || "",
+            country: coachData.address_info?.country || "India",
+            designation: coachData.professional_info?.designation_id || "",
+            experience: coachData.professional_info?.professional_experience || "",
+            qualifications: coachData.professional_info?.education_qualification || "",
+            certifications: (coachData.professional_info?.certifications || []).join(', '),
+            specializations: coachData.areas_of_expertise || [],
+            // These fields might not exist in the GET response, add them if they do
+            branch: coachData.assignment_details?.branch_id || "",
+            courses: coachData.assignment_details?.courses || [],
+            salary: coachData.assignment_details?.salary?.toString() || "",
+            joinDate: coachData.assignment_details?.join_date?.split('T')[0] || "",
+            emergencyContactName: coachData.emergency_contact?.name || "",
+            emergencyContactPhone: coachData.emergency_contact?.phone || "",
+            emergencyContactRelation: coachData.emergency_contact?.relationship || "",
+            achievements: coachData.additional_info?.achievements || "",
+            notes: coachData.additional_info?.notes || "",
+          })
+        } else {
+          if (coachResponse.status === 'fulfilled' && coachResponse.value.status === 404) {
             throw new Error("Coach not found")
           }
-          throw new Error(`Failed to fetch coach data: ${response.status}`)
+          throw new Error("Failed to fetch coach data")
         }
 
-        const coachData = await response.json()
-        
-        // Map API data to form structure
-        setFormData({
-          firstName: coachData.personal_info?.first_name || "",
-          lastName: coachData.personal_info?.last_name || "",
-          email: coachData.contact_info?.email || "",
-          phone: coachData.contact_info?.phone || "",
-          gender: coachData.personal_info?.gender || "",
-          dateOfBirth: coachData.personal_info?.date_of_birth?.split('T')[0] || "",
-          address: coachData.address_info?.address || "",
-          area: coachData.address_info?.area || "",
-          city: coachData.address_info?.city || "",
-          state: coachData.address_info?.state || "",
-          zipCode: coachData.address_info?.zip_code || "",
-          country: coachData.address_info?.country || "India",
-          designation: coachData.professional_info?.designation_id || "",
-          experience: coachData.professional_info?.professional_experience || "",
-          qualifications: coachData.professional_info?.education_qualification || "",
-          certifications: (coachData.professional_info?.certifications || []).join(', '),
-          specializations: coachData.areas_of_expertise || [],
-          // These fields might not exist in the GET response, add them if they do
-          branch: coachData.assignment_details?.branch_id || "",
-          courses: coachData.assignment_details?.courses || [],
-          salary: coachData.assignment_details?.salary?.toString() || "",
-          joinDate: coachData.assignment_details?.join_date?.split('T')[0] || "",
-          emergencyContactName: coachData.emergency_contact?.name || "",
-          emergencyContactPhone: coachData.emergency_contact?.phone || "",
-          emergencyContactRelation: coachData.emergency_contact?.relationship || "",
-          achievements: coachData.additional_info?.achievements || "",
-          notes: coachData.additional_info?.notes || "",
-        })
+        // Set fallback data for designations and specializations
+        setDesignations([
+          "Senior Master",
+          "Master Instructor",
+          "Senior Instructor",
+          "Instructor",
+          "Assistant Instructor",
+          "Head Coach",
+          "Coach",
+          "Assistant Coach"
+        ])
+        setIsLoadingDesignations(false)
+
+        setSpecializations([
+          "Taekwondo",
+          "Karate",
+          "Kung Fu",
+          "Kick Boxing",
+          "Self Defense",
+          "Mixed Martial Arts",
+          "Judo",
+          "Jiu-Jitsu",
+          "Muay Thai",
+          "Boxing",
+          "Kuchipudi Dance",
+          "Bharatanatyam",
+          "Gymnastics",
+          "Yoga"
+        ])
+        setIsLoadingSpecializations(false)
+
+        // Handle branches data
+        if (branchesResponse.status === 'fulfilled' && branchesResponse.value.ok) {
+          const branchesData = await branchesResponse.value.json()
+          const branchesList = (branchesData.branches || []).map((branch: any) => ({
+            id: branch.id,
+            name: branch.branch?.name || branch.name
+          }))
+          setBranches(branchesList)
+        } else {
+          // Fallback to hardcoded branches if API fails
+          setBranches([
+            { id: "branch-1", name: "Madhapur Branch" },
+            { id: "branch-2", name: "Hitech City Branch" },
+            { id: "branch-3", name: "Gachibowli Branch" },
+            { id: "branch-4", name: "Kondapur Branch" },
+            { id: "branch-5", name: "Kukatpally Branch" }
+          ])
+        }
+        setIsLoadingBranches(false)
+
+        // Handle courses data
+        if (coursesResponse.status === 'fulfilled' && coursesResponse.value.ok) {
+          const coursesData = await coursesResponse.value.json()
+          const coursesList = (coursesData.courses || []).map((course: any) =>
+            course.title || course.name
+          )
+          setCourses(coursesList)
+        } else {
+          // Fallback to hardcoded courses if API fails
+          setCourses([
+            "Taekwondo Basics",
+            "Advanced Karate",
+            "Kung Fu Fundamentals",
+            "Self Defense for Women",
+            "Mixed Martial Arts",
+            "Kids Martial Arts",
+            "Adult Fitness Boxing",
+            "Traditional Dance Forms"
+          ])
+        }
+        setIsLoadingCourses(false)
 
       } catch (error) {
-        console.error("Error fetching coach data:", error)
-        setErrors({ general: error instanceof Error ? error.message : 'Failed to load coach data' })
+        console.error("Error fetching data:", error)
+        setErrors({ general: error instanceof Error ? error.message : 'Failed to load data' })
+        setIsLoadingDesignations(false)
+        setIsLoadingSpecializations(false)
+        setIsLoadingBranches(false)
+        setIsLoadingCourses(false)
       } finally {
         setIsLoading(false)
       }
     }
 
     if (coachId) {
-      fetchCoachData()
+      fetchAllData()
     }
   }, [coachId])
 
@@ -201,6 +263,36 @@ export default function EditCoachPage() {
     }))
   }
 
+  const sendCredentialsEmail = async () => {
+    setIsSendingEmail(true)
+    try {
+      const token = TokenManager.getToken()
+      if (!token) {
+        throw new Error("Authentication token not found")
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/${coachId}/send-credentials`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || errorData.message || 'Failed to send credentials email')
+      }
+
+      alert("Login credentials have been sent to the coach's email address")
+    } catch (error) {
+      console.error("Error sending credentials email:", error)
+      alert(error instanceof Error ? error.message : "Failed to send credentials email")
+    } finally {
+      setIsSendingEmail(false)
+    }
+  }
+
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {}
 
@@ -208,6 +300,16 @@ export default function EditCoachPage() {
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
     if (!formData.email.trim()) newErrors.email = "Email is required"
     if (!formData.phone.trim()) newErrors.phone = "Phone number is required"
+
+    // Password validation (optional for edit)
+    if (formData.password.trim()) {
+      if (formData.password.length < 8) {
+        newErrors.password = "Password must be at least 8 characters long"
+      } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(formData.password)) {
+        newErrors.password = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+      }
+    }
+
     if (!formData.gender) newErrors.gender = "Gender is required"
     if (!formData.designation) newErrors.designation = "Designation is required"
     if (!formData.experience) newErrors.experience = "Experience is required"
@@ -239,6 +341,7 @@ export default function EditCoachPage() {
           email: formData.email,
           country_code: "+91",
           phone: formData.phone,
+          ...(formData.password.trim() && { password: formData.password })
         },
         address_info: {
           address: formData.address,
@@ -264,7 +367,7 @@ export default function EditCoachPage() {
         throw new Error("Authentication token not found. Please login again.")
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/coaches/${coachId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches/${coachId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -400,6 +503,22 @@ export default function EditCoachPage() {
                     className={errors.email ? "border-red-500" : ""}
                   />
                   {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Leave blank to keep current password"
+                    className={errors.password ? "border-red-500" : ""}
+                  />
+                  {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
+                  <p className="text-xs text-gray-500">
+                    Leave blank to keep current password. If changing, must be at least 8 characters with uppercase, lowercase, number, and special character
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -652,8 +771,8 @@ export default function EditCoachPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {branches.map((branch) => (
-                        <SelectItem key={branch} value={branch}>
-                          {branch}
+                        <SelectItem key={branch.id || branch} value={branch.name || branch}>
+                          {branch.name || branch}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -801,29 +920,47 @@ export default function EditCoachPage() {
           </Card>
 
           {/* Form Actions */}
-          <div className="flex justify-end space-x-4 py-6">
+          <div className="flex justify-between items-center py-6">
             <Button
               type="button"
-              variant="outline"
-              onClick={() => router.push("/dashboard/coaches")}
-              disabled={isSubmitting}
+              onClick={sendCredentialsEmail}
+              disabled={isSendingEmail || isSubmitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="bg-yellow-400 hover:bg-yellow-500 text-black"
-              disabled={isSubmitting || isLoading}
-            >
-              {isSubmitting ? (
+              {isSendingEmail ? (
                 <div className="flex items-center space-x-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Updating Coach...</span>
+                  <span>Sending Email...</span>
                 </div>
               ) : (
-                "Update Coach"
+                "Send Credentials via Email"
               )}
             </Button>
+
+            <div className="flex space-x-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/dashboard/coaches")}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-yellow-400 hover:bg-yellow-500 text-black"
+                disabled={isSubmitting || isLoading}
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Updating Coach...</span>
+                  </div>
+                ) : (
+                  "Update Coach"
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </main>

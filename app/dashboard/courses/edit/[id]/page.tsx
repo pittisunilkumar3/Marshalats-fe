@@ -41,6 +41,12 @@ export default function EditCourse() {
   const [categories, setCategories] = useState<any[]>([])
   const [isLoadingCategories, setIsLoadingCategories] = useState(true)
 
+  // Dynamic data states
+  const [martialArtsStyles, setMartialArtsStyles] = useState<any[]>([])
+  const [instructors, setInstructors] = useState<any[]>([])
+  const [isLoadingStyles, setIsLoadingStyles] = useState(true)
+  const [isLoadingInstructors, setIsLoadingInstructors] = useState(true)
+
   // Form state
   const [prerequisites, setPrerequisites] = useState<string[]>([])
   const [newPrerequisite, setNewPrerequisite] = useState("")
@@ -67,69 +73,131 @@ export default function EditCourse() {
     tags: [] as string[]
   })
 
-  // Fetch course data on component mount
+  // Fetch course data and dynamic options on component mount
   useEffect(() => {
-    const fetchCourseData = async () => {
+    const fetchAllData = async () => {
       try {
         setIsLoading(true)
-        
+
         const token = TokenManager.getToken()
         if (!token) {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/${courseId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        // Fetch all data in parallel
+        const [courseResponse, stylesResponse, instructorsResponse] = await Promise.allSettled([
+          // Fetch course data
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses/${courseId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          // Fetch martial arts styles (from categories or a dedicated endpoint)
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories?type=martial_arts_style&active_only=true`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }),
+          // Fetch instructors (coaches)
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/coaches?active_only=true&limit=100`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+        ])
 
-        if (!response.ok) {
-          if (response.status === 404) {
+        // Handle course data
+        if (courseResponse.status === 'fulfilled' && courseResponse.value.ok) {
+          const courseData = await courseResponse.value.json()
+
+          // Map API data to form structure
+          setFormData({
+            courseTitle: courseData.title || "",
+            courseCode: courseData.code || "",
+            description: courseData.description || "",
+            martialArtsStyle: courseData.martial_art_style_id || "",
+            difficultyLevel: courseData.difficulty_level || "",
+            category: courseData.category_id || "",
+            maxStudents: courseData.student_requirements?.max_students?.toString() || "",
+            minAge: courseData.student_requirements?.min_age?.toString() || "",
+            maxAge: courseData.student_requirements?.max_age?.toString() || "",
+            price: courseData.pricing?.amount?.toString() || "",
+            currency: courseData.pricing?.currency || "INR",
+            branchSpecificPricing: courseData.pricing?.branch_specific_pricing || false,
+            instructor: courseData.instructor_id || "",
+            equipmentRequired: courseData.course_content?.equipment_required?.join('\n') || "",
+            syllabus: courseData.course_content?.syllabus || "",
+            certificationOffered: courseData.settings?.offers_certification || false,
+            isActive: courseData.settings?.active || true,
+            imageUrl: courseData.media_resources?.course_image_url || "",
+            videoUrl: courseData.media_resources?.promo_video_url || "",
+            tags: []
+          })
+
+          setPrerequisites(courseData.student_requirements?.prerequisites || [])
+        } else {
+          if (courseResponse.status === 'fulfilled' && courseResponse.value.status === 404) {
             throw new Error("Course not found")
           }
-          throw new Error(`Failed to fetch course data: ${response.status}`)
+          throw new Error("Failed to fetch course data")
         }
 
-        const courseData = await response.json()
-        
-        // Map API data to form structure
-        setFormData({
-          courseTitle: courseData.title || "",
-          courseCode: courseData.code || "",
-          description: courseData.description || "",
-          martialArtsStyle: courseData.martial_art_style_id || "",
-          difficultyLevel: courseData.difficulty_level || "",
-          category: courseData.category_id || "",
-          maxStudents: courseData.student_requirements?.max_students?.toString() || "",
-          minAge: courseData.student_requirements?.min_age?.toString() || "",
-          maxAge: courseData.student_requirements?.max_age?.toString() || "",
-          price: courseData.pricing?.amount?.toString() || "",
-          currency: courseData.pricing?.currency || "INR",
-          branchSpecificPricing: courseData.pricing?.branch_specific_pricing || false,
-          instructor: courseData.instructor_id || "",
-          equipmentRequired: courseData.course_content?.equipment_required?.join('\n') || "",
-          syllabus: courseData.course_content?.syllabus || "",
-          certificationOffered: courseData.settings?.offers_certification || false,
-          isActive: courseData.settings?.active || true,
-          imageUrl: courseData.media_resources?.course_image_url || "",
-          videoUrl: courseData.media_resources?.promo_video_url || "",
-          tags: []
-        })
+        // Handle martial arts styles data
+        if (stylesResponse.status === 'fulfilled' && stylesResponse.value.ok) {
+          const stylesData = await stylesResponse.value.json()
+          const styles = (stylesData.categories || []).map((style: any) => ({
+            id: style.id,
+            name: style.name
+          }))
+          setMartialArtsStyles(styles)
+        } else {
+          // Fallback to hardcoded styles if API fails
+          setMartialArtsStyles([
+            { id: "style-kung-fu-uuid", name: "Kung Fu" },
+            { id: "style-karate-uuid", name: "Karate" },
+            { id: "style-taekwondo-uuid", name: "Taekwondo" },
+            { id: "style-boxing-uuid", name: "Boxing" },
+            { id: "style-jiu-jitsu-uuid", name: "Brazilian Jiu-Jitsu" },
+            { id: "style-muay-thai-uuid", name: "Muay Thai" },
+            { id: "style-judo-uuid", name: "Judo" }
+          ])
+        }
+        setIsLoadingStyles(false)
 
-        setPrerequisites(courseData.student_requirements?.prerequisites || [])
+        // Handle instructors data
+        if (instructorsResponse.status === 'fulfilled' && instructorsResponse.value.ok) {
+          const instructorsData = await instructorsResponse.value.json()
+          const instructorsList = (instructorsData.coaches || []).map((coach: any) => ({
+            id: coach.id,
+            name: coach.full_name || `${coach.personal_info?.first_name || ''} ${coach.personal_info?.last_name || ''}`.trim()
+          }))
+          setInstructors(instructorsList)
+        } else {
+          // Fallback to hardcoded instructors if API fails
+          setInstructors([
+            { id: "instructor-john-uuid", name: "Sensei John Martinez" },
+            { id: "instructor-chen-uuid", name: "Master Chen Wei" },
+            { id: "instructor-sarah-uuid", name: "Coach Sarah Williams" },
+            { id: "instructor-david-uuid", name: "Sifu David Thompson" }
+          ])
+        }
+        setIsLoadingInstructors(false)
 
       } catch (error) {
-        console.error("Error fetching course data:", error)
-        setErrors({ general: error instanceof Error ? error.message : 'Failed to load course data' })
+        console.error("Error fetching data:", error)
+        setErrors({ general: error instanceof Error ? error.message : 'Failed to load data' })
+        setIsLoadingStyles(false)
+        setIsLoadingInstructors(false)
       } finally {
         setIsLoading(false)
       }
     }
 
     if (courseId) {
-      fetchCourseData()
+      fetchAllData()
     }
   }, [courseId])
 
@@ -138,7 +206,7 @@ export default function EditCourse() {
     const fetchCategories = async () => {
       try {
         setIsLoadingCategories(true)
-        const response = await fetch('http://localhost:8003/api/categories/public/details?active_only=true')
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/categories/public/details?active_only=true`)
 
         if (!response.ok) {
           throw new Error('Failed to fetch categories')
@@ -221,7 +289,7 @@ export default function EditCourse() {
         return
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/courses/${courseId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/courses/${courseId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -369,20 +437,23 @@ export default function EditCourse() {
                         <Select
                           value={formData.martialArtsStyle}
                           onValueChange={(value) => setFormData({ ...formData, martialArtsStyle: value })}
+                          disabled={isLoadingStyles}
                         >
                           <SelectTrigger className="h-10 px-3 w-full">
-                            <SelectValue placeholder="Select martial arts style" />
+                            <SelectValue placeholder={isLoadingStyles ? "Loading styles..." : "Select martial arts style"} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="style-kung-fu-uuid">Kung Fu</SelectItem>
-                            <SelectItem value="style-karate-uuid">Karate</SelectItem>
-                            <SelectItem value="style-taekwondo-uuid">Taekwondo</SelectItem>
-                            <SelectItem value="style-boxing-uuid">Boxing</SelectItem>
-                            <SelectItem value="style-jiu-jitsu-uuid">Brazilian Jiu-Jitsu</SelectItem>
-                            <SelectItem value="style-muay-thai-uuid">Muay Thai</SelectItem>
-                            <SelectItem value="style-judo-uuid">Judo</SelectItem>
-                            <SelectItem value="style-krav-maga-uuid">Krav Maga</SelectItem>
-                            <SelectItem value="style-mixed-martial-arts-uuid">Mixed Martial Arts</SelectItem>
+                            {martialArtsStyles.length > 0 ? (
+                              martialArtsStyles.map((style) => (
+                                <SelectItem key={style.id} value={style.id}>
+                                  {style.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-gray-500">
+                                <p className="text-sm">No martial arts styles available</p>
+                              </div>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -436,15 +507,23 @@ export default function EditCourse() {
                         <Select
                           value={formData.instructor}
                           onValueChange={(value) => setFormData({ ...formData, instructor: value })}
+                          disabled={isLoadingInstructors}
                         >
                           <SelectTrigger className="h-10 px-3 w-full">
-                            <SelectValue placeholder="Select instructor" />
+                            <SelectValue placeholder={isLoadingInstructors ? "Loading instructors..." : "Select instructor"} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="instructor-john-uuid">Sensei John Martinez</SelectItem>
-                            <SelectItem value="instructor-chen-uuid">Master Chen Wei</SelectItem>
-                            <SelectItem value="instructor-sarah-uuid">Coach Sarah Williams</SelectItem>
-                            <SelectItem value="instructor-david-uuid">Sifu David Thompson</SelectItem>
+                            {instructors.length > 0 ? (
+                              instructors.map((instructor) => (
+                                <SelectItem key={instructor.id} value={instructor.id}>
+                                  {instructor.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-gray-500">
+                                <p className="text-sm">No instructors available</p>
+                              </div>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
