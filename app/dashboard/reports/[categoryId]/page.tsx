@@ -31,6 +31,55 @@ import {
 } from "@/components/skeleton-loaders"
 import { ReportsBreadcrumb } from "@/components/breadcrumb"
 import { notFound } from 'next/navigation'
+import { TokenManager } from "@/lib/tokenManager"
+
+// Branch interface (same as branches page)
+interface Branch {
+  id: string
+  branch: {
+    name: string
+    code: string
+    email: string
+    phone: string
+    address: {
+      line1: string
+      area: string
+      city: string
+      state: string
+      pincode: string
+      country: string
+    }
+  }
+  manager_id: string
+  is_active?: boolean
+  operational_details: {
+    courses_offered: string[]
+    timings: Array<{
+      day: string
+      open: string
+      close: string
+    }>
+    holidays: string[]
+  }
+  assignments: {
+    accessories_available: boolean
+    courses: string[]
+    branch_admins: string[]
+  }
+  bank_details: {
+    bank_name: string
+    account_number: string
+    upi_id: string
+  }
+  statistics?: {
+    coach_count: number
+    student_count: number
+    course_count: number
+    active_courses: number
+  }
+  created_at: string
+  updated_at: string
+}
 
 // Report categories data (same as main dashboard)
 const REPORT_CATEGORIES = [
@@ -136,7 +185,7 @@ const REPORT_CATEGORIES = [
 function CategoryReportsPageContent() {
   const params = useParams()
   const router = useRouter()
-  const { user, token } = useAuth()
+  const { user } = useAuth()
 
   const categoryId = params.categoryId as string
 
@@ -165,6 +214,11 @@ function CategoryReportsPageContent() {
   // Master search specific state
   const [masterResults, setMasterResults] = useState<any[]>([])
 
+  // Branch state (same as branches page)
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [branchesLoading, setBranchesLoading] = useState(false)
+  const [branchesError, setBranchesError] = useState<string | null>(null)
+
   // Filter states with validation
   const [filters, setFilters] = useState<ReportFilters>({
     session: "",
@@ -186,9 +240,10 @@ function CategoryReportsPageContent() {
     reset: resetApiState
   } = useReportsApi(
     useCallback(() => {
+      const token = TokenManager.getToken()
       if (!token) throw new Error('Authentication token not available')
       return reportsAPI.getReportFilters(token)
-    }, [token]),
+    }, []),
     {
       maxRetries: 2,
       retryDelay: 1500,
@@ -205,10 +260,11 @@ function CategoryReportsPageContent() {
 
   // Load filter options on component mount
   useEffect(() => {
+    const token = TokenManager.getToken()
     if (token) {
       resetApiState()
     }
-  }, [token, resetApiState])
+  }, [resetApiState])
 
   // Handle API errors with user feedback
   useEffect(() => {
@@ -217,6 +273,55 @@ function CategoryReportsPageContent() {
       console.error('Category page error:', error)
     }
   }, [error, lastError])
+
+  // Fetch branches (same logic as branches page)
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        setBranchesLoading(true)
+        setBranchesError(null)
+
+        const token = TokenManager.getToken()
+        if (!token) {
+          throw new Error("Authentication token not found. Please login again.")
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || errorData.message || `Failed to fetch branches (${response.status})`)
+        }
+
+        const data = await response.json()
+        console.log("Branches fetched successfully for reports:", data)
+
+        // Handle different response formats
+        const branchesData = data.branches || data || []
+        console.log("Processed branches data for reports:", branchesData)
+
+        setBranches(branchesData)
+
+      } catch (error) {
+        console.error('Error fetching branches for reports:', error)
+        setBranchesError(error instanceof Error ? error.message : 'Failed to fetch branches')
+        toast.error('Failed to load branches for filtering')
+      } finally {
+        setBranchesLoading(false)
+      }
+    }
+
+    // Fetch branches for all report categories that have branch dropdowns
+    if (categoryId && ['student', 'financial', 'branch', 'coach', 'course', 'master'].includes(categoryId)) {
+      fetchBranches()
+    }
+  }, [categoryId])
 
   // Show skeleton loading for initial load
   if (loading && !filterOptions) {
@@ -275,6 +380,7 @@ function CategoryReportsPageContent() {
   }
 
   const handleStudentSearch = async () => {
+    const token = TokenManager.getToken()
     if (!token) {
       toast.error('Authentication required')
       return
@@ -368,6 +474,7 @@ function CategoryReportsPageContent() {
 
   // Financial Reports Handler
   const handleFinancialSearch = async () => {
+    const token = TokenManager.getToken()
     if (!token) {
       toast.error('Authentication required')
       return
@@ -460,6 +567,7 @@ function CategoryReportsPageContent() {
 
   // Branch Reports Handler
   const handleBranchSearch = async () => {
+    const token = TokenManager.getToken()
     if (!token) {
       toast.error('Authentication required')
       return
@@ -547,6 +655,7 @@ function CategoryReportsPageContent() {
 
   // Coach Reports Handler
   const handleCoachSearch = async () => {
+    const token = TokenManager.getToken()
     if (!token) {
       toast.error('Authentication required')
       return
@@ -645,6 +754,7 @@ function CategoryReportsPageContent() {
 
   // Course Reports Handler
   const handleCourseSearch = async () => {
+    const token = TokenManager.getToken()
     if (!token) {
       toast.error('Authentication required')
       return
@@ -739,6 +849,7 @@ function CategoryReportsPageContent() {
 
   // Master Reports Handler
   const handleMasterSearch = async () => {
+    const token = TokenManager.getToken()
     if (!token) {
       toast.error('Authentication required')
       return
@@ -961,19 +1072,30 @@ function CategoryReportsPageContent() {
                     <Select
                       value={filters.branch_id || "all"}
                       onValueChange={(value) => handleFilterChange('branch_id', value)}
+                      disabled={branchesLoading}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Branch" />
+                        <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select Branch"} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Branches</SelectItem>
-                        {filterOptions?.filter_options?.branches?.filter(branch => branch.id && branch.name).map((branch) => (
+                        {branches.filter(branch => branch.id && branch.branch?.name).map((branch) => (
                           <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
+                            {branch.branch?.name || 'N/A'} ({branch.branch?.code || branch.id})
                           </SelectItem>
                         ))}
+                        {branchesError && (
+                          <SelectItem value="" disabled>
+                            Error loading branches
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                    {branchesError && (
+                      <p className="text-sm text-red-600 mt-1">
+                        {branchesError}
+                      </p>
+                    )}
                   </div>
 
                   {/* Payment Status Dropdown */}
@@ -1156,19 +1278,30 @@ function CategoryReportsPageContent() {
                     <Select
                       value={filters.branch_id || "all"}
                       onValueChange={(value) => handleFilterChange('branch_id', value)}
+                      disabled={branchesLoading}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Branch" />
+                        <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select Branch"} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Branches</SelectItem>
-                        {filterOptions?.filter_options?.branches?.filter(branch => branch.id && branch.name).map((branch) => (
+                        {branches.filter(branch => branch.id && branch.branch?.name).map((branch) => (
                           <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
+                            {branch.branch?.name || 'N/A'} ({branch.branch?.code || branch.id})
                           </SelectItem>
                         ))}
+                        {branchesError && (
+                          <SelectItem value="" disabled>
+                            Error loading branches
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                    {branchesError && (
+                      <p className="text-sm text-red-600 mt-1">
+                        {branchesError}
+                      </p>
+                    )}
                   </div>
 
                   {/* Performance Metric */}
@@ -1344,19 +1477,30 @@ function CategoryReportsPageContent() {
                     <Select
                       value={filters.branch_id || "all"}
                       onValueChange={(value) => handleFilterChange('branch_id', value)}
+                      disabled={branchesLoading}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Branch" />
+                        <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select Branch"} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Branches</SelectItem>
-                        {filterOptions?.filter_options?.branches?.filter(branch => branch.id && branch.name).map((branch) => (
+                        {branches.filter(branch => branch.id && branch.branch?.name).map((branch) => (
                           <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
+                            {branch.branch?.name || 'N/A'} ({branch.branch?.code || branch.id})
                           </SelectItem>
                         ))}
+                        {branchesError && (
+                          <SelectItem value="" disabled>
+                            Error loading branches
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                    {branchesError && (
+                      <p className="text-sm text-red-600 mt-1">
+                        {branchesError}
+                      </p>
+                    )}
                   </div>
 
                   {/* Experience Level */}
@@ -1573,19 +1717,30 @@ function CategoryReportsPageContent() {
                     <Select
                       value={filters.branch_id || "all"}
                       onValueChange={(value) => handleFilterChange('branch_id', value)}
+                      disabled={branchesLoading}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Branch" />
+                        <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select Branch"} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Branches</SelectItem>
-                        {filterOptions?.filter_options?.branches?.filter(branch => branch.id && branch.name).map((branch) => (
+                        {branches.filter(branch => branch.id && branch.branch?.name).map((branch) => (
                           <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
+                            {branch.branch?.name || 'N/A'} ({branch.branch?.code || branch.id})
                           </SelectItem>
                         ))}
+                        {branchesError && (
+                          <SelectItem value="" disabled>
+                            Error loading branches
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                    {branchesError && (
+                      <p className="text-sm text-red-600 mt-1">
+                        {branchesError}
+                      </p>
+                    )}
                   </div>
 
                   {/* Enrollment Status */}
@@ -1741,20 +1896,30 @@ function CategoryReportsPageContent() {
                     <Select
                       value={filters.branch_id || "all"}
                       onValueChange={(value) => handleFilterChange('branch_id', value)}
+                      disabled={branchesLoading}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Scope" />
+                        <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select Scope"} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Branches</SelectItem>
-                        <SelectItem value="system-wide">System-wide</SelectItem>
-                        {filterOptions?.filter_options?.branches?.filter(branch => branch.id && branch.name).map((branch) => (
+                        {branches.filter(branch => branch.id && branch.branch?.name).map((branch) => (
                           <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
+                            {branch.branch?.name || 'N/A'} ({branch.branch?.code || branch.id})
                           </SelectItem>
                         ))}
+                        {branchesError && (
+                          <SelectItem value="" disabled>
+                            Error loading branches
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                    {branchesError && (
+                      <p className="text-sm text-red-600 mt-1">
+                        {branchesError}
+                      </p>
+                    )}
                   </div>
 
                   {/* Date Range */}
@@ -1911,19 +2076,30 @@ function CategoryReportsPageContent() {
                     <Select
                       value={filters.branch_id || "all"}
                       onValueChange={(value) => handleFilterChange('branch_id', value)}
+                      disabled={branchesLoading}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Branch" />
+                        <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select Branch"} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Branches</SelectItem>
-                        {filterOptions?.filter_options?.branches?.filter(branch => branch.id && branch.name).map((branch) => (
+                        {branches.filter(branch => branch.id && branch.branch?.name).map((branch) => (
                           <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
+                            {branch.branch?.name || 'N/A'} ({branch.branch?.code || branch.id})
                           </SelectItem>
                         ))}
+                        {branchesError && (
+                          <SelectItem value="" disabled>
+                            Error loading branches
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                    {branchesError && (
+                      <p className="text-sm text-red-600 mt-1">
+                        {branchesError}
+                      </p>
+                    )}
                   </div>
 
                   {/* Course Dropdown */}
