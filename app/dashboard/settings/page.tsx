@@ -27,36 +27,9 @@ import {
 import DashboardHeader from "@/components/dashboard-header"
 import { useToast } from "@/hooks/use-toast"
 import { TokenManager } from "@/lib/tokenManager"
+import { settingsAPI, SystemSettings, SettingsResponse } from "@/lib/settingsAPI"
 
-interface SystemSettings {
-  // System Configuration
-  systemName: string
-  systemVersion: string
-  maintenanceMode: boolean
-  debugMode: boolean
-  
-  // Email Configuration
-  emailEnabled: boolean
-  smtpHost: string
-  smtpPort: string
-  smtpUsername: string
-  smtpSecurity: string
-  
-  // Notification Settings
-  notificationsEnabled: boolean
-  emailNotifications: boolean
-  smsNotifications: boolean
-  
-  // Security Settings
-  sessionTimeout: string
-  passwordPolicy: string
-  twoFactorAuth: boolean
-  
-  // Backup Settings
-  autoBackup: boolean
-  backupFrequency: string
-  backupRetention: string
-}
+// Use the SystemSettings interface from the API
 
 interface FormErrors {
   [key: string]: string
@@ -71,32 +44,32 @@ export default function SuperAdminSettingsPage() {
   
   const [settings, setSettings] = useState<SystemSettings>({
     // System Configuration
-    systemName: "Marshalats Learning Management System",
-    systemVersion: "1.0.0",
-    maintenanceMode: false,
-    debugMode: false,
-    
+    system_name: "Marshalats Learning Management System",
+    system_version: "1.0.0",
+    maintenance_mode: false,
+    debug_mode: false,
+
     // Email Configuration
-    emailEnabled: true,
-    smtpHost: "",
-    smtpPort: "587",
-    smtpUsername: "",
-    smtpSecurity: "tls",
-    
+    email_enabled: true,
+    smtp_host: "",
+    smtp_port: "587",
+    smtp_username: "",
+    smtp_security: "tls",
+
     // Notification Settings
-    notificationsEnabled: true,
-    emailNotifications: true,
-    smsNotifications: false,
-    
+    notifications_enabled: true,
+    email_notifications: true,
+    sms_notifications: false,
+
     // Security Settings
-    sessionTimeout: "24",
-    passwordPolicy: "medium",
-    twoFactorAuth: false,
-    
+    session_timeout: "24",
+    password_policy: "medium",
+    two_factor_auth: false,
+
     // Backup Settings
-    autoBackup: true,
-    backupFrequency: "daily",
-    backupRetention: "30"
+    auto_backup: true,
+    backup_frequency: "daily",
+    backup_retention: "30"
   })
 
   useEffect(() => {
@@ -119,11 +92,14 @@ export default function SuperAdminSettingsPage() {
 
   const loadSettings = async () => {
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // In a real implementation, this would fetch from an API endpoint
-      // For now, we'll use the default settings
+      const token = TokenManager.getToken()
+      if (!token) {
+        router.push("/superadmin/login")
+        return
+      }
+
+      const settingsData = await settingsAPI.getSettings(token)
+      setSettings(settingsData)
       setLoading(false)
     } catch (error) {
       console.error("Error loading settings:", error)
@@ -146,31 +122,31 @@ export default function SuperAdminSettingsPage() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
-    if (!settings.systemName.trim()) {
-      newErrors.systemName = "System name is required"
+    if (!settings.system_name.trim()) {
+      newErrors.system_name = "System name is required"
     }
 
-    if (settings.emailEnabled) {
-      if (!settings.smtpHost.trim()) {
-        newErrors.smtpHost = "SMTP host is required when email is enabled"
+    if (settings.email_enabled) {
+      if (!settings.smtp_host.trim()) {
+        newErrors.smtp_host = "SMTP host is required when email is enabled"
       }
-      if (!settings.smtpPort.trim()) {
-        newErrors.smtpPort = "SMTP port is required when email is enabled"
-      } else if (!/^\d+$/.test(settings.smtpPort)) {
-        newErrors.smtpPort = "SMTP port must be a number"
+      if (!settings.smtp_port.trim()) {
+        newErrors.smtp_port = "SMTP port is required when email is enabled"
+      } else if (!/^\d+$/.test(settings.smtp_port)) {
+        newErrors.smtp_port = "SMTP port must be a number"
       }
     }
 
-    if (!settings.sessionTimeout.trim()) {
-      newErrors.sessionTimeout = "Session timeout is required"
-    } else if (!/^\d+$/.test(settings.sessionTimeout)) {
-      newErrors.sessionTimeout = "Session timeout must be a number"
+    if (!settings.session_timeout.trim()) {
+      newErrors.session_timeout = "Session timeout is required"
+    } else if (!/^\d+$/.test(settings.session_timeout)) {
+      newErrors.session_timeout = "Session timeout must be a number"
     }
 
-    if (!settings.backupRetention.trim()) {
-      newErrors.backupRetention = "Backup retention is required"
-    } else if (!/^\d+$/.test(settings.backupRetention)) {
-      newErrors.backupRetention = "Backup retention must be a number"
+    if (!settings.backup_retention.trim()) {
+      newErrors.backup_retention = "Backup retention is required"
+    } else if (!/^\d+$/.test(settings.backup_retention)) {
+      newErrors.backup_retention = "Backup retention must be a number"
     }
 
     setErrors(newErrors)
@@ -181,18 +157,22 @@ export default function SuperAdminSettingsPage() {
     if (!validateForm()) return
 
     setIsSubmitting(true)
-    
+
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // In a real implementation, this would save to an API endpoint
+      const token = TokenManager.getToken()
+      if (!token) {
+        router.push("/superadmin/login")
+        return
+      }
+
+      await settingsAPI.updateSettings(settings, token)
+
       toast({
         title: "Settings Saved",
         description: "System settings have been updated successfully",
         variant: "default"
       })
-      
+
     } catch (error) {
       console.error("Error saving settings:", error)
       toast({
@@ -205,34 +185,31 @@ export default function SuperAdminSettingsPage() {
     }
   }
 
-  const handleReset = () => {
-    // Reset to default values
-    setSettings({
-      systemName: "Marshalats Learning Management System",
-      systemVersion: "1.0.0",
-      maintenanceMode: false,
-      debugMode: false,
-      emailEnabled: true,
-      smtpHost: "",
-      smtpPort: "587",
-      smtpUsername: "",
-      smtpSecurity: "tls",
-      notificationsEnabled: true,
-      emailNotifications: true,
-      smsNotifications: false,
-      sessionTimeout: "24",
-      passwordPolicy: "medium",
-      twoFactorAuth: false,
-      autoBackup: true,
-      backupFrequency: "daily",
-      backupRetention: "30"
-    })
-    setErrors({})
-    toast({
-      title: "Settings Reset",
-      description: "All settings have been reset to default values",
-      variant: "default"
-    })
+  const handleReset = async () => {
+    try {
+      const token = TokenManager.getToken()
+      if (!token) {
+        router.push("/superadmin/login")
+        return
+      }
+
+      const resetSettings = await settingsAPI.resetSettings(token)
+      setSettings(resetSettings)
+      setErrors({})
+
+      toast({
+        title: "Settings Reset",
+        description: "All settings have been reset to default values",
+        variant: "default"
+      })
+    } catch (error) {
+      console.error("Error resetting settings:", error)
+      toast({
+        title: "Error",
+        description: "Failed to reset system settings",
+        variant: "destructive"
+      })
+    }
   }
 
   if (loading) {
@@ -295,29 +272,29 @@ export default function SuperAdminSettingsPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="systemName" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="system_name" className="text-sm font-medium text-gray-700">
                     System Name *
                   </Label>
                   <Input
-                    id="systemName"
-                    value={settings.systemName}
-                    onChange={(e) => handleInputChange("systemName", e.target.value)}
-                    className={errors.systemName ? "border-red-500" : ""}
+                    id="system_name"
+                    value={settings.system_name}
+                    onChange={(e) => handleInputChange("system_name", e.target.value)}
+                    className={errors.system_name ? "border-red-500" : ""}
                     placeholder="Enter system name"
                   />
-                  {errors.systemName && (
-                    <p className="mt-1 text-sm text-red-600">{errors.systemName}</p>
+                  {errors.system_name && (
+                    <p className="mt-1 text-sm text-red-600">{errors.system_name}</p>
                   )}
                 </div>
 
                 <div>
-                  <Label htmlFor="systemVersion" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="system_version" className="text-sm font-medium text-gray-700">
                     System Version
                   </Label>
                   <Input
-                    id="systemVersion"
-                    value={settings.systemVersion}
-                    onChange={(e) => handleInputChange("systemVersion", e.target.value)}
+                    id="system_version"
+                    value={settings.system_version}
+                    onChange={(e) => handleInputChange("system_version", e.target.value)}
                     placeholder="Enter system version"
                     disabled
                   />
@@ -336,8 +313,8 @@ export default function SuperAdminSettingsPage() {
                     </p>
                   </div>
                   <Switch
-                    checked={settings.maintenanceMode}
-                    onCheckedChange={(checked) => handleInputChange("maintenanceMode", checked)}
+                    checked={settings.maintenance_mode}
+                    onCheckedChange={(checked) => handleInputChange("maintenance_mode", checked)}
                   />
                 </div>
 
@@ -349,13 +326,13 @@ export default function SuperAdminSettingsPage() {
                     </p>
                   </div>
                   <Switch
-                    checked={settings.debugMode}
-                    onCheckedChange={(checked) => handleInputChange("debugMode", checked)}
+                    checked={settings.debug_mode}
+                    onCheckedChange={(checked) => handleInputChange("debug_mode", checked)}
                   />
                 </div>
               </div>
 
-              {settings.maintenanceMode && (
+              {settings.maintenance_mode && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
@@ -382,28 +359,28 @@ export default function SuperAdminSettingsPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="sessionTimeout" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="session_timeout" className="text-sm font-medium text-gray-700">
                     Session Timeout (hours) *
                   </Label>
                   <Input
-                    id="sessionTimeout"
-                    value={settings.sessionTimeout}
-                    onChange={(e) => handleInputChange("sessionTimeout", e.target.value)}
-                    className={errors.sessionTimeout ? "border-red-500" : ""}
+                    id="session_timeout"
+                    value={settings.session_timeout}
+                    onChange={(e) => handleInputChange("session_timeout", e.target.value)}
+                    className={errors.session_timeout ? "border-red-500" : ""}
                     placeholder="24"
                   />
-                  {errors.sessionTimeout && (
-                    <p className="mt-1 text-sm text-red-600">{errors.sessionTimeout}</p>
+                  {errors.session_timeout && (
+                    <p className="mt-1 text-sm text-red-600">{errors.session_timeout}</p>
                   )}
                 </div>
 
                 <div>
-                  <Label htmlFor="passwordPolicy" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="password_policy" className="text-sm font-medium text-gray-700">
                     Password Policy
                   </Label>
                   <Select
-                    value={settings.passwordPolicy}
-                    onValueChange={(value) => handleInputChange("passwordPolicy", value)}
+                    value={settings.password_policy}
+                    onValueChange={(value) => handleInputChange("password_policy", value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select password policy" />
@@ -425,8 +402,8 @@ export default function SuperAdminSettingsPage() {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.twoFactorAuth}
-                  onCheckedChange={(checked) => handleInputChange("twoFactorAuth", checked)}
+                  checked={settings.two_factor_auth}
+                  onCheckedChange={(checked) => handleInputChange("two_factor_auth", checked)}
                 />
               </div>
             </CardContent>
@@ -449,12 +426,12 @@ export default function SuperAdminSettingsPage() {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.notificationsEnabled}
-                  onCheckedChange={(checked) => handleInputChange("notificationsEnabled", checked)}
+                  checked={settings.notifications_enabled}
+                  onCheckedChange={(checked) => handleInputChange("notifications_enabled", checked)}
                 />
               </div>
 
-              {settings.notificationsEnabled && (
+              {settings.notifications_enabled && (
                 <>
                   <Separator />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -464,8 +441,8 @@ export default function SuperAdminSettingsPage() {
                         <p className="text-xs text-gray-500">Send notifications via email</p>
                       </div>
                       <Switch
-                        checked={settings.emailNotifications}
-                        onCheckedChange={(checked) => handleInputChange("emailNotifications", checked)}
+                        checked={settings.email_notifications}
+                        onCheckedChange={(checked) => handleInputChange("email_notifications", checked)}
                       />
                     </div>
 
@@ -475,9 +452,169 @@ export default function SuperAdminSettingsPage() {
                         <p className="text-xs text-gray-500">Send notifications via SMS</p>
                       </div>
                       <Switch
-                        checked={settings.smsNotifications}
-                        onCheckedChange={(checked) => handleInputChange("smsNotifications", checked)}
+                        checked={settings.sms_notifications}
+                        onCheckedChange={(checked) => handleInputChange("sms_notifications", checked)}
                       />
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Email Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                Email Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium text-gray-700">Enable Email</Label>
+                  <p className="text-xs text-gray-500">
+                    Allow the system to send emails
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.email_enabled}
+                  onCheckedChange={(checked) => handleInputChange("email_enabled", checked)}
+                />
+              </div>
+
+              {settings.email_enabled && (
+                <>
+                  <Separator />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="smtp_host" className="text-sm font-medium text-gray-700">
+                        SMTP Host *
+                      </Label>
+                      <Input
+                        id="smtp_host"
+                        value={settings.smtp_host}
+                        onChange={(e) => handleInputChange("smtp_host", e.target.value)}
+                        className={errors.smtp_host ? "border-red-500" : ""}
+                        placeholder="smtp.gmail.com"
+                      />
+                      {errors.smtp_host && (
+                        <p className="mt-1 text-sm text-red-600">{errors.smtp_host}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="smtp_port" className="text-sm font-medium text-gray-700">
+                        SMTP Port *
+                      </Label>
+                      <Input
+                        id="smtp_port"
+                        value={settings.smtp_port}
+                        onChange={(e) => handleInputChange("smtp_port", e.target.value)}
+                        className={errors.smtp_port ? "border-red-500" : ""}
+                        placeholder="587"
+                      />
+                      {errors.smtp_port && (
+                        <p className="mt-1 text-sm text-red-600">{errors.smtp_port}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="smtp_username" className="text-sm font-medium text-gray-700">
+                        SMTP Username
+                      </Label>
+                      <Input
+                        id="smtp_username"
+                        value={settings.smtp_username}
+                        onChange={(e) => handleInputChange("smtp_username", e.target.value)}
+                        placeholder="your-email@gmail.com"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="smtp_security" className="text-sm font-medium text-gray-700">
+                        SMTP Security
+                      </Label>
+                      <Select
+                        value={settings.smtp_security}
+                        onValueChange={(value) => handleInputChange("smtp_security", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select security protocol" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="tls">TLS</SelectItem>
+                          <SelectItem value="ssl">SSL</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Backup Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="w-5 h-5" />
+                Backup Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium text-gray-700">Auto Backup</Label>
+                  <p className="text-xs text-gray-500">
+                    Enable automatic system backups
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.auto_backup}
+                  onCheckedChange={(checked) => handleInputChange("auto_backup", checked)}
+                />
+              </div>
+
+              {settings.auto_backup && (
+                <>
+                  <Separator />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="backup_frequency" className="text-sm font-medium text-gray-700">
+                        Backup Frequency
+                      </Label>
+                      <Select
+                        value={settings.backup_frequency}
+                        onValueChange={(value) => handleInputChange("backup_frequency", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select backup frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="backup_retention" className="text-sm font-medium text-gray-700">
+                        Backup Retention (days) *
+                      </Label>
+                      <Input
+                        id="backup_retention"
+                        value={settings.backup_retention}
+                        onChange={(e) => handleInputChange("backup_retention", e.target.value)}
+                        className={errors.backup_retention ? "border-red-500" : ""}
+                        placeholder="30"
+                      />
+                      {errors.backup_retention && (
+                        <p className="mt-1 text-sm text-red-600">{errors.backup_retention}</p>
+                      )}
                     </div>
                   </div>
                 </>
