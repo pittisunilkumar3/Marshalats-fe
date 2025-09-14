@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
     // Mock response for getting branches
     const mockBranches = [
       {
-        branch_id: 'branch-1',
+        id: 'branch-1',
         branch: {
           name: 'Rock martial arts',
           code: 'RMA01',
@@ -200,13 +200,51 @@ export async function GET(request: NextRequest) {
           bank_name: 'State Bank of India',
           account_number: 'XXXXXXXXXXXX',
           upi_id: 'name@ybl'
-        }
+        },
+        is_active: true
+      },
+      {
+        id: 'branch-2',
+        branch: {
+          name: 'Elite Combat Academy',
+          code: 'ECA01',
+          email: 'elite@combat.com',
+          phone: '+19876543210',
+          address: {
+            line1: '456 Fighter Street',
+            area: 'Combat Zone',
+            city: 'Mumbai',
+            state: 'Maharashtra',
+            pincode: '400001',
+            country: 'India'
+          }
+        },
+        manager_id: 'manager-uuid-5678',
+        operational_details: {
+          courses_offered: ['Karate', 'Boxing'],
+          timings: [
+            { day: 'Monday', open: '06:00', close: '20:00' },
+            { day: 'Wednesday', open: '06:00', close: '20:00' },
+            { day: 'Friday', open: '06:00', close: '20:00' }
+          ],
+          holidays: ['2025-08-15', '2025-10-02']
+        },
+        assignments: {
+          accessories_available: false,
+          courses: ['course-uuid-3', 'course-uuid-4'],
+          branch_admins: ['coach-uuid-3']
+        },
+        bank_details: {
+          bank_name: 'HDFC Bank',
+          account_number: 'YYYYYYYYYYYY',
+          upi_id: 'elite@paytm'
+        },
+        is_active: true
       }
     ]
 
     return NextResponse.json({
-      success: true,
-      data: mockBranches
+      branches: mockBranches
     })
 
   } catch (error) {

@@ -15,6 +15,7 @@ import { TokenManager } from "@/lib/tokenManager"
 interface Course {
   id: string
   title: string
+  name?: string // For compatibility
   code: string
   description: string
   difficulty_level: string
@@ -35,6 +36,13 @@ interface Course {
   }
   created_at: string
   updated_at: string
+  // Additional properties for dashboard display
+  icon?: string
+  branches?: number
+  branchLocations?: string[]
+  masters?: number
+  students?: number
+  enabled?: boolean
 }
 
 export default function CourseListPage() {
@@ -45,6 +53,7 @@ export default function CourseListPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showBranchDropdown, setShowBranchDropdown] = useState<string | null>(null)
 
   // Fetch courses from API
   useEffect(() => {
@@ -233,19 +242,19 @@ export default function CourseListPage() {
                 </thead>
                 <tbody>
                   {filteredCourses.map((course, index) => (
-                    <tr key={course.id} className={`border-b hover:bg-gray-50 ${!course.enabled ? "opacity-50" : ""}`}>
+                    <tr key={course.id} className={`border-b hover:bg-gray-50 ${!(course.enabled ?? true) ? "opacity-50" : ""}`}>
                       <td className="py-4 px-6">
                         <div className="flex items-center space-x-3">
                           <div className="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center">
-                            <span className="text-xl">{course.icon}</span>
+                            <span className="text-xl">{course.icon || '📚'}</span>
                           </div>
-                          <span className="font-medium text-gray-900">{course.name}</span>
+                          <span className="font-medium text-gray-900">{course.name || course.title}</span>
                         </div>
                       </td>
                       <td className="py-4 px-6">
                         <div className="relative">
-                          <span className="text-gray-700">{course.branches} Branches</span>
-                          {index === 1 && showBranchDropdown === course.id && (
+                          <span className="text-gray-700">{course.branches || 0} Branches</span>
+                          {index === 1 && showBranchDropdown === course.id && course.branchLocations && (
                             <div className="absolute top-8 left-0 bg-white border rounded-lg shadow-lg p-2 z-10 min-w-[150px]">
                               {course.branchLocations.map((location, idx) => (
                                 <div key={idx} className="py-1 px-2 hover:bg-gray-100 cursor-pointer text-sm">
@@ -267,10 +276,10 @@ export default function CourseListPage() {
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        <span className="text-gray-700">{course.masters} masters</span>
+                        <span className="text-gray-700">{course.masters || 0} masters</span>
                       </td>
                       <td className="py-4 px-6">
-                        <span className="text-gray-700">{course.students} students</span>
+                        <span className="text-gray-700">{course.students || 0} students</span>
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center space-x-2">
@@ -308,7 +317,7 @@ export default function CourseListPage() {
                             onClick={() => handleToggleEnable(course.id)}
                             className="p-1 h-8 w-8"
                           >
-                            {course.enabled ? (
+                            {(course.enabled ?? true) ? (
                               <ToggleRight className="w-4 h-4 text-yellow-500" />
                             ) : (
                               <ToggleLeft className="w-4 h-4 text-gray-400" />

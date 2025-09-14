@@ -27,6 +27,7 @@ interface Branch {
     }
   }
   manager_id: string
+  is_active?: boolean
   operational_details: {
     courses_offered: string[]
     timings: Array<{
@@ -466,9 +467,12 @@ export default function BranchesList() {
                 filteredBranches.map((branch) => (
                   <tr key={branch.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.id}</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch.name}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch?.name || 'N/A'}</td>
                     <td className="px-4 py-4 text-sm text-gray-900 max-w-xs">
-                      {`${branch.branch.address.line1}, ${branch.branch.address.city}, ${branch.branch.address.state}`}
+                      {branch.branch?.address ?
+                        `${branch.branch.address.line1}, ${branch.branch.address.city}, ${branch.branch.address.state}` :
+                        'Address not available'
+                      }
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div className="flex items-center">
@@ -491,7 +495,7 @@ export default function BranchesList() {
                           </div>
                         ) : (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            {branch.statistics?.course_count ?? branch.operational_details.courses_offered.length} Courses
+                            {branch.statistics?.course_count ?? branch.operational_details?.courses_offered?.length ?? 0} Courses
                           </span>
                         )}
                       </div>
@@ -518,10 +522,10 @@ export default function BranchesList() {
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {branch.assignments.accessories_available ? 'Yes' : 'No'}
+                      {branch.assignments?.accessories_available ? 'Yes' : 'No'}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch.email}</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch.phone}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch?.email || 'N/A'}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{branch.branch?.phone || 'N/A'}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex items-center space-x-2">
                         <button
@@ -546,7 +550,7 @@ export default function BranchesList() {
                           <Trash2 className="w-4 h-4" />
                         </button>
                         <Switch
-                          checked={branch.is_active}
+                          checked={branch.is_active ?? true}
                           className="data-[state=checked]:bg-yellow-400"
                           onCheckedChange={async (checked) => {
                             try {
@@ -637,7 +641,7 @@ export default function BranchesList() {
                   <SelectContent>
                     {filteredBranches.map((branch) => (
                       <SelectItem key={branch.id} value={branch.id}>
-                        {branch.branch.name} ({branch.id})
+                        {branch.branch?.name || 'Unknown Branch'} ({branch.id})
                       </SelectItem>
                     ))}
                   </SelectContent>
