@@ -163,33 +163,10 @@ export default function EditStudent() {
             }
           })(),
 
-          // Load branches
+          // Branches will be loaded dynamically when location is selected
           (async () => {
-            try {
-              setIsLoadingBranches(true)
-              const branchesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations/public/with-branches?active_only=true`)
-              if (branchesResponse.ok) {
-                const branchesData = await branchesResponse.json()
-
-                // Extract branches from locations
-                const allBranches: any[] = []
-                if (branchesData.locations) {
-                  branchesData.locations.forEach((location: any) => {
-                    if (location.branches) {
-                      allBranches.push(...location.branches)
-                    }
-                  })
-                }
-                setBranches(allBranches)
-                return allBranches
-              }
-              return []
-            } catch (error) {
-              console.error('Error loading branches:', error)
-              return []
-            } finally {
-              setIsLoadingBranches(false)
-            }
+            setIsLoadingBranches(false)
+            return []
           })(),
 
           // Load courses
@@ -324,20 +301,56 @@ export default function EditStudent() {
     }
   }, [formData.category, courses])
 
-  const filteredBranches = useMemo(() => {
-    if (!formData.location) return branches
+  // Load branches when location changes
+  useEffect(() => {
+    const loadBranchesForLocation = async () => {
+      if (!formData.location) {
+        setBranches([])
+        return
+      }
 
-    // Find the selected location
-    const selectedLocation = locations.find(loc => loc.id === formData.location)
-    if (!selectedLocation) return branches
+      try {
+        setIsLoadingBranches(true)
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches/public/by-location/${formData.location}?active_only=true`)
 
-    // Filter branches by matching city with location name
-    return branches.filter(branch =>
-      branch.address?.city?.toLowerCase().includes(selectedLocation.name.toLowerCase()) ||
-      branch.address?.state?.toLowerCase().includes(selectedLocation.name.toLowerCase()) ||
-      branch.name?.toLowerCase().includes(selectedLocation.name.toLowerCase())
-    )
-  }, [formData.location, branches, locations])
+        if (response.ok) {
+          const data = await response.json()
+          setBranches(data.branches || [])
+        } else {
+          console.error('Failed to load branches for location:', response.statusText)
+          setBranches([])
+          toast({
+            title: "Warning",
+            description: "Failed to load branches for selected location.",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error('Error loading branches for location:', error)
+        setBranches([])
+        toast({
+          title: "Error",
+          description: "Failed to load branches. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingBranches(false)
+      }
+    }
+
+    loadBranchesForLocation()
+  }, [formData.location])
+
+  // Clear branch selection when location changes
+  useEffect(() => {
+    if (formData.branch && formData.location) {
+      // Check if current branch is still valid for the selected location
+      const branchExists = branches.find(branch => branch.id === formData.branch)
+      if (!branchExists) {
+        setFormData(prev => ({ ...prev, branch: "" }))
+      }
+    }
+  }, [branches, formData.branch, formData.location])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -721,8 +734,8 @@ export default function EditStudent() {
                           } />
                         </SelectTrigger>
                         <SelectContent>
-                          {filteredBranches.length > 0 ? (
-                            filteredBranches.map((branch) => (
+                          {branches.length > 0 ? (
+                            branches.map((branch) => (
                               <SelectItem key={branch.id} value={branch.id}>
                                 <div className="flex flex-col">
                                   <span className="font-medium">{branch.name}</span>
@@ -735,7 +748,12 @@ export default function EditStudent() {
                           ) : (
                             <div className="p-4 text-center text-gray-500">
                               <p className="text-sm">
-                                {formData.location ? "No branches available in selected location" : "Select a location first"}
+                                {!formData.location
+                                  ? "Please select a location first"
+                                  : isLoadingBranches
+                                    ? "Loading branches..."
+                                    : "No branches available for selected location"
+                                }
                               </p>
                             </div>
                           )}

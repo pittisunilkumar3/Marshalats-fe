@@ -36,56 +36,78 @@ export default function SelectBranchPage() {
   const { registrationData, updateRegistrationData } = useRegistration()
 
   // State management
-  const [selectedState, setSelectedState] = useState("")
+  const [selectedLocation, setSelectedLocation] = useState("")
   const [branch_id, setBranchId] = useState(registrationData.branch_id || "")
   const [branches, setBranches] = useState<Branch[]>([])
-  const [filteredBranches, setFilteredBranches] = useState<Branch[]>([])
-  const [availableStates, setAvailableStates] = useState<string[]>([])
-  const [isLoadingBranches, setIsLoadingBranches] = useState(true)
+  const [locations, setLocations] = useState<any[]>([])
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false)
+  const [isLoadingLocations, setIsLoadingLocations] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch branches on component mount
+  // Fetch locations on component mount
   useEffect(() => {
-    const fetchBranches = async () => {
+    const fetchLocations = async () => {
+      try {
+        setIsLoadingLocations(true)
+        setError(null)
+
+        const response = await fetch('http://localhost:8003/api/locations/public/details?active_only=true')
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch locations')
+        }
+
+        const data = await response.json()
+        setLocations(data.locations || [])
+
+        console.log(`Loaded ${data.locations?.length || 0} locations`)
+
+      } catch (err) {
+        console.error('Error fetching locations:', err)
+        setError('Failed to load locations. Please try again.')
+        toast({
+          title: "Error",
+          description: "Failed to load locations. Please check your connection and try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingLocations(false)
+      }
+    }
+
+    fetchLocations()
+  }, [])
+
+  // Load branches when location is selected
+  useEffect(() => {
+    const loadBranchesForLocation = async () => {
+      if (!selectedLocation) {
+        setBranches([])
+        return
+      }
+
       try {
         setIsLoadingBranches(true)
         setError(null)
 
-        const response = await fetch('http://localhost:8003/api/locations/public/with-branches?active_only=true')
+        const response = await fetch(`http://localhost:8003/api/branches/public/by-location/${selectedLocation}?active_only=true`)
 
         if (!response.ok) {
-          throw new Error('Failed to fetch branches')
+          throw new Error('Failed to fetch branches for location')
         }
 
         const data = await response.json()
+        setBranches(data.branches || [])
 
-        // Extract branches from locations
-        const allBranches: Branch[] = []
-        if (data.locations) {
-          data.locations.forEach((location: any) => {
-            if (location.branches) {
-              allBranches.push(...location.branches)
-            }
-          })
-        }
-
-        setBranches(allBranches)
-        setFilteredBranches(allBranches)
-
-        // Extract unique states from branches
-        const states = [...new Set(allBranches.map((branch: Branch) => branch.address.state))]
-          .filter(Boolean)
-          .sort()
-        setAvailableStates(states)
-
-        console.log(`Loaded ${allBranches.length} branches from ${states.length} states`)
+        console.log(`Loaded ${data.branches?.length || 0} branches for location`)
 
       } catch (err) {
-        console.error('Error fetching branches:', err)
-        setError('Failed to load branches. Please try again.')
+        console.error('Error fetching branches for location:', err)
+        setError('Failed to load branches for selected location.')
+        setBranches([])
         toast({
           title: "Error",
-          description: "Failed to load branches. Please check your connection and try again.",
+          description: "Failed to load branches for selected location. Please try again.",
           variant: "destructive",
         })
       } finally {
@@ -93,23 +115,19 @@ export default function SelectBranchPage() {
       }
     }
 
-    fetchBranches()
-  }, [])
+    loadBranchesForLocation()
+  }, [selectedLocation])
 
-  // Filter branches when state is selected
+  // Clear branch selection when location changes
   useEffect(() => {
-    if (!selectedState || selectedState === "all-states") {
-      setFilteredBranches(branches)
-    } else {
-      const filtered = branches.filter(branch => branch.address.state === selectedState)
-      setFilteredBranches(filtered)
-
-      // Clear branch selection if current branch is not in the filtered list
-      if (branch_id && !filtered.find(branch => branch.id === branch_id)) {
+    if (branch_id && selectedLocation) {
+      // Check if current branch is still valid for the selected location
+      const branchExists = branches.find(branch => branch.id === branch_id)
+      if (!branchExists) {
         setBranchId("")
       }
     }
-  }, [selectedState, branches, branch_id])
+  }, [branches, branch_id, selectedLocation])
 
     const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -127,12 +145,12 @@ export default function SelectBranchPage() {
     }
 
     // Find the selected branch to get additional details
-    const selectedBranch = filteredBranches.find(branch => branch.id === branch_id)
+    const selectedBranch = branches.find(branch => branch.id === branch_id)
 
     // Save branch selection data to context
     updateRegistrationData({
       branch_id,
-      selected_state: selectedState,
+      selected_location: selectedLocation,
       branch_details: selectedBranch ? {
         name: selectedBranch.name,
         address: selectedBranch.address
@@ -172,7 +190,7 @@ export default function SelectBranchPage() {
 
           {/* Branch Selection Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Select State */}
+            {/* Select Location */}
             <div className="relative">
               <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 pointer-events-none">
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,20 +199,17 @@ export default function SelectBranchPage() {
                 </svg>
               </div>
               <Select
-                value={selectedState}
-                onValueChange={(value) => setSelectedState(value)}
-                disabled={isLoadingBranches}
+                value={selectedLocation}
+                onValueChange={(value) => setSelectedLocation(value)}
+                disabled={isLoadingLocations}
               >
                 <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
-                  <SelectValue placeholder={isLoadingBranches ? "Loading states..." : "Select State"} className="text-gray-500" />
+                  <SelectValue placeholder={isLoadingLocations ? "Loading locations..." : "Select Location"} className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  <SelectItem value="all-states" className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
-                    All States
-                  </SelectItem>
-                  {availableStates.map((state) => (
-                    <SelectItem key={state} value={state} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
-                      {state}
+                  {locations.map((location) => (
+                    <SelectItem key={location.id} value={location.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
+                      {location.name} ({location.state})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -211,20 +226,22 @@ export default function SelectBranchPage() {
               <Select
                 value={branch_id}
                 onValueChange={(value) => setBranchId(value)}
-                disabled={isLoadingBranches}
+                disabled={!selectedLocation || isLoadingBranches}
               >
                 <SelectTrigger className="!w-full !h-14 !pl-12 !pr-4 !py-4 !text-base !bg-gray-50 !border-gray-200 !rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent !min-h-14">
                   <SelectValue placeholder={
-                    isLoadingBranches
-                      ? "Loading branches..."
-                      : filteredBranches.length === 0
-                        ? "No branches available"
-                        : "Select Branch"
+                    !selectedLocation
+                      ? "Select location first"
+                      : isLoadingBranches
+                        ? "Loading branches..."
+                        : branches.length === 0
+                          ? "No branches available"
+                          : "Select Branch"
                   } className="text-gray-500" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg max-h-60">
-                  {filteredBranches.length > 0 ? (
-                    filteredBranches.map((branch) => (
+                  {branches.length > 0 ? (
+                    branches.map((branch) => (
                       <SelectItem key={branch.id} value={branch.id} className="!py-3 !pl-3 pr-8 text-base hover:bg-gray-50 rounded-lg cursor-pointer">
                         <div className="flex flex-col">
                           <span className="font-medium">{branch.name}</span>
@@ -237,9 +254,11 @@ export default function SelectBranchPage() {
                   ) : (
                     <div className="p-4 text-center text-gray-500">
                       <p className="text-sm">
-                        {selectedState && selectedState !== "all-states"
-                          ? `No branches available in ${selectedState}`
-                          : "No branches available"
+                        {!selectedLocation
+                          ? "Please select a location first"
+                          : isLoadingBranches
+                            ? "Loading branches..."
+                            : "No branches available for selected location"
                         }
                       </p>
                     </div>

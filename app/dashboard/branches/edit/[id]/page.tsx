@@ -33,6 +33,7 @@ interface FormData {
       country: string
     }
   }
+  location_id: string  // Add location_id field
   manager_id: string
   operational_details: {
     courses_offered: string[]
@@ -116,11 +117,13 @@ export default function EditBranch() {
   const [availableManagers, setAvailableManagers] = useState<any[]>([])
   const [availableCourses, setAvailableCourses] = useState<any[]>([])
   const [availableAdmins, setAvailableAdmins] = useState<any[]>([])
+  const [states, setStates] = useState<{ state: string; location_count: number }[]>([])
 
   // Loading states for dynamic data
   const [isLoadingManagers, setIsLoadingManagers] = useState(true)
   const [isLoadingCourses, setIsLoadingCourses] = useState(true)
   const [isLoadingAdmins, setIsLoadingAdmins] = useState(true)
+  const [isLoadingStates, setIsLoadingStates] = useState(true)
 
   const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
@@ -136,7 +139,7 @@ export default function EditBranch() {
         }
 
         // Fetch branch data and dynamic options in parallel
-        const [branchResponse, managersResponse, coursesResponse, adminsResponse] = await Promise.allSettled([
+        const [branchResponse, managersResponse, coursesResponse, adminsResponse, statesResponse] = await Promise.allSettled([
           // Fetch branch data
           fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches/${branchId}`, {
             headers: {
@@ -164,7 +167,9 @@ export default function EditBranch() {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
-          })
+          }),
+          // Fetch states (public endpoint)
+          fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations/public/states?active_only=true`)
         ])
 
         // Handle branch data
@@ -244,12 +249,28 @@ export default function EditBranch() {
         }
         setIsLoadingAdmins(false)
 
+        // Handle states data
+        if (statesResponse.status === 'fulfilled' && statesResponse.value.ok) {
+          const statesData = await statesResponse.value.json()
+          setStates(statesData.states || [])
+        } else {
+          // Fallback to some common states
+          setStates([
+            { state: "Telangana", location_count: 1 },
+            { state: "Maharashtra", location_count: 1 },
+            { state: "Karnataka", location_count: 1 },
+            { state: "Tamil Nadu", location_count: 1 }
+          ])
+        }
+        setIsLoadingStates(false)
+
       } catch (error) {
         console.error("Error fetching data:", error)
         setErrors({ general: error instanceof Error ? error.message : 'Failed to load data' })
         setIsLoadingManagers(false)
         setIsLoadingCourses(false)
         setIsLoadingAdmins(false)
+        setIsLoadingStates(false)
       } finally {
         setIsLoading(false)
       }
@@ -649,21 +670,17 @@ export default function EditBranch() {
                               address: { ...formData.branch.address, state: value }
                             }
                           })}
+                          disabled={isLoadingStates}
                         >
                           <SelectTrigger className={errors.state ? "border-red-500" : ""}>
-                            <SelectValue placeholder="Select state" />
+                            <SelectValue placeholder={isLoadingStates ? "Loading states..." : "Select state"} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Andhra Pradesh">Andhra Pradesh</SelectItem>
-                            <SelectItem value="Telangana">Telangana</SelectItem>
-                            <SelectItem value="Karnataka">Karnataka</SelectItem>
-                            <SelectItem value="Tamil Nadu">Tamil Nadu</SelectItem>
-                            <SelectItem value="Kerala">Kerala</SelectItem>
-                            <SelectItem value="Maharashtra">Maharashtra</SelectItem>
-                            <SelectItem value="Gujarat">Gujarat</SelectItem>
-                            <SelectItem value="Rajasthan">Rajasthan</SelectItem>
-                            <SelectItem value="Uttar Pradesh">Uttar Pradesh</SelectItem>
-                            <SelectItem value="Delhi">Delhi</SelectItem>
+                            {states.map((stateData) => (
+                              <SelectItem key={stateData.state} value={stateData.state}>
+                                {stateData.state} ({stateData.location_count} location{stateData.location_count !== 1 ? 's' : ''})
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         {errors.state && <p className="text-red-500 text-sm">{errors.state}</p>}

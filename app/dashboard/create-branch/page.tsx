@@ -84,6 +84,7 @@ interface BankDetails {
 
 interface FormData {
   branch: BranchInfo
+  location_id: string  // Add location_id field
   manager_id: string
   operational_details: OperationalDetails
   assignments: Assignments
@@ -102,6 +103,8 @@ export default function CreateBranchPage() {
   const [isLoadingCourses, setIsLoadingCourses] = useState(true)
   const [coaches, setCoaches] = useState<{ id: string; name: string }[]>([])
   const [isLoadingCoaches, setIsLoadingCoaches] = useState(true)
+  const [locations, setLocations] = useState<{ id: string; name: string; state: string }[]>([])
+  const [isLoadingLocations, setIsLoadingLocations] = useState(true)
 
   // State for new timing form
   const [newTiming, setNewTiming] = useState({
@@ -125,6 +128,7 @@ export default function CreateBranchPage() {
         country: "India"
       }
     },
+    location_id: "",  // Add location_id field
     manager_id: "",
     operational_details: {
       courses_offered: [],
@@ -285,51 +289,44 @@ export default function CreateBranchPage() {
 
       // Load coaches
       await loadCoaches()
+
+      // Load locations
+      await loadLocations()
     }
 
     loadData()
   }, [])
 
+  const loadLocations = async () => {
+    try {
+      setIsLoadingLocations(true)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/locations/public/details?active_only=true`)
+
+      if (response.ok) {
+        const data = await response.json()
+        setLocations(data.locations || [])
+      } else {
+        console.error('Failed to load locations:', response.statusText)
+        toast({
+          title: "Error",
+          description: "Failed to load locations. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error('Error loading locations:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load locations. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingLocations(false)
+    }
+  }
 
 
-  const indianStates = [
-    "Andhra Pradesh",
-    "Arunachal Pradesh",
-    "Assam",
-    "Bihar",
-    "Chhattisgarh",
-    "Goa",
-    "Gujarat",
-    "Haryana",
-    "Himachal Pradesh",
-    "Jharkhand",
-    "Karnataka",
-    "Kerala",
-    "Madhya Pradesh",
-    "Maharashtra",
-    "Manipur",
-    "Meghalaya",
-    "Mizoram",
-    "Nagaland",
-    "Odisha",
-    "Punjab",
-    "Rajasthan",
-    "Sikkim",
-    "Tamil Nadu",
-    "Telangana",
-    "Tripura",
-    "Uttar Pradesh",
-    "Uttarakhand",
-    "West Bengal",
-    "Delhi",
-    "Jammu and Kashmir",
-    "Ladakh",
-    "Chandigarh",
-    "Dadra and Nagar Haveli and Daman and Diu",
-    "Lakshadweep",
-    "Puducherry",
-    "Andaman and Nicobar Islands"
-  ]
+
 
   const bankOptions = [
     "State Bank of India",
@@ -469,7 +466,10 @@ export default function CreateBranchPage() {
     if (!formData.branch.code.trim()) newErrors.branchCode = "Branch code is required"
     if (!formData.branch.email.trim()) newErrors.branchEmail = "Branch email is required"
     if (!formData.branch.phone.trim()) newErrors.branchPhone = "Branch phone is required"
-    
+
+    // Location validation
+    if (!formData.location_id.trim()) newErrors.locationId = "Location selection is required"
+
     // Address validation
     if (!formData.branch.address.line1.trim()) newErrors.addressLine1 = "Address line 1 is required"
     if (!formData.branch.address.area.trim()) newErrors.addressArea = "Area is required"
@@ -642,6 +642,53 @@ export default function CreateBranchPage() {
                   </div>
                 </div>
 
+                {/* Location Selection */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <MapPin className="w-4 h-4 text-yellow-600" />
+                    <span className="font-medium">Location Selection</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Location *</Label>
+                    <Select
+                      value={formData.location_id}
+                      onValueChange={(value) => {
+                        setFormData({ ...formData, location_id: value })
+                        // Auto-populate state and city based on selected location
+                        const selectedLocation = locations.find(loc => loc.id === value)
+                        if (selectedLocation) {
+                          setFormData(prev => ({
+                            ...prev,
+                            location_id: value,
+                            branch: {
+                              ...prev.branch,
+                              address: {
+                                ...prev.branch.address,
+                                city: selectedLocation.name,
+                                state: selectedLocation.state
+                              }
+                            }
+                          }))
+                        }
+                      }}
+                      disabled={isLoadingLocations}
+                    >
+                      <SelectTrigger className={errors.locationId ? "border-red-500" : ""}>
+                        <SelectValue placeholder={isLoadingLocations ? "Loading locations..." : "Select location"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((location) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name} ({location.state})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.locationId && <p className="text-red-500 text-sm">{errors.locationId}</p>}
+                  </div>
+                </div>
+
                 {/* Address Section */}
                 <div className="pt-4 border-t">
                   <div className="flex items-center space-x-2 mb-4">
@@ -709,27 +756,20 @@ export default function CreateBranchPage() {
 
                       <div className="space-y-2">
                         <Label htmlFor="addressState">State *</Label>
-                        <Select
+                        <Input
+                          id="addressState"
                           value={formData.branch.address.state}
-                          onValueChange={(value) => setFormData({
+                          onChange={(e) => setFormData({
                             ...formData,
                             branch: {
                               ...formData.branch,
-                              address: { ...formData.branch.address, state: value }
+                              address: { ...formData.branch.address, state: e.target.value }
                             }
                           })}
-                        >
-                          <SelectTrigger className={errors.addressState ? "border-red-500" : ""}>
-                            <SelectValue placeholder="Select state" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {indianStates.map((state) => (
-                              <SelectItem key={state} value={state}>
-                                {state}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="State (auto-populated from location)"
+                          className={errors.addressState ? "border-red-500" : ""}
+                          readOnly={!!formData.location_id}
+                        />
                         {errors.addressState && <p className="text-red-500 text-sm">{errors.addressState}</p>}
                       </div>
 
