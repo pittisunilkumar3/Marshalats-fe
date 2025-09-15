@@ -130,6 +130,37 @@ class StudentAPI extends BaseAPI {
       token
     })
   }
+
+  // Student search functionality
+  async searchStudents(token: string, params?: {
+    q?: string
+    branch_id?: string
+    course_id?: string
+    is_active?: boolean
+    start_date?: string
+    end_date?: string
+    skip?: number
+    limit?: number
+  }): Promise<any> {
+    let endpoint = '/api/search/students'
+
+    if (params) {
+      const searchParams = new URLSearchParams()
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          searchParams.append(key, value.toString())
+        }
+      })
+      if (searchParams.toString()) {
+        endpoint += `?${searchParams.toString()}`
+      }
+    }
+
+    return await this.makeRequest(endpoint, {
+      method: 'GET',
+      token
+    })
+  }
 }
 
 export const studentAPI = new StudentAPI()

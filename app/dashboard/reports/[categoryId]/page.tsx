@@ -32,6 +32,7 @@ import {
 import { ReportsBreadcrumb } from "@/components/breadcrumb"
 import { notFound } from 'next/navigation'
 import { TokenManager } from "@/lib/tokenManager"
+import { studentAPI } from "@/lib/studentAPI"
 
 // Branch interface (same as branches page)
 interface Branch {
@@ -198,6 +199,7 @@ function CategoryReportsPageContent() {
   const [searchLoading, setSearchLoading] = useState(false)
   const [studentResults, setStudentResults] = useState<any[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   // Financial search specific state
   const [financialResults, setFinancialResults] = useState<any[]>([])
@@ -219,6 +221,11 @@ function CategoryReportsPageContent() {
   const [branchesLoading, setBranchesLoading] = useState(false)
   const [branchesError, setBranchesError] = useState<string | null>(null)
 
+  // Courses state for dynamic filtering
+  const [allCourses, setAllCourses] = useState<any[]>([])
+  const [filteredCourses, setFilteredCourses] = useState<any[]>([])
+  const [branchesWithCourses, setBranchesWithCourses] = useState<any[]>([])
+
   // Filter states with validation
   const [filters, setFilters] = useState<ReportFilters>({
     session: "",
@@ -230,6 +237,11 @@ function CategoryReportsPageContent() {
     date_range: "",
     status: ""
   })
+
+  // Custom date range state
+  const [customStartDate, setCustomStartDate] = useState("")
+  const [customEndDate, setCustomEndDate] = useState("")
+  const [showCustomDateInputs, setShowCustomDateInputs] = useState(false)
 
   // Use enhanced API hook with retry mechanism
   const {
@@ -274,9 +286,9 @@ function CategoryReportsPageContent() {
     }
   }, [error, lastError])
 
-  // Fetch branches (same logic as branches page)
+  // Fetch branches with courses for dynamic filtering
   useEffect(() => {
-    const fetchBranches = async () => {
+    const fetchBranchesWithCourses = async () => {
       try {
         setBranchesLoading(true)
         setBranchesError(null)
@@ -286,7 +298,8 @@ function CategoryReportsPageContent() {
           throw new Error("Authentication token not found. Please login again.")
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/branches`, {
+        // Use the backend API endpoint for branches with courses
+        const response = await fetch(`http://localhost:8003/api/branches-with-courses`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -296,32 +309,83 @@ function CategoryReportsPageContent() {
 
         if (!response.ok) {
           const errorData = await response.json()
-          throw new Error(errorData.detail || errorData.message || `Failed to fetch branches (${response.status})`)
+          throw new Error(errorData.detail || errorData.message || `Failed to fetch branches with courses (${response.status})`)
         }
 
         const data = await response.json()
-        console.log("Branches fetched successfully for reports:", data)
+        console.log("Branches with courses fetched successfully for reports:", data)
 
-        // Handle different response formats
-        const branchesData = data.branches || data || []
-        console.log("Processed branches data for reports:", branchesData)
+        const branchesData = data.branches || []
 
-        setBranches(branchesData)
+        // Store branches with courses for dynamic filtering
+        setBranchesWithCourses(branchesData)
+
+        // Extract branches for dropdown (maintain compatibility)
+        const branchesForDropdown = branchesData.map((branch: any) => ({
+          id: branch.id,
+          branch: branch.branch
+        }))
+        setBranches(branchesForDropdown)
+
+        // Extract all courses from all branches
+        const allCoursesFromBranches: any[] = []
+        branchesData.forEach((branch: any) => {
+          if (branch.courses && Array.isArray(branch.courses)) {
+            branch.courses.forEach((course: any) => {
+              // Add branch info to course for reference
+              const courseWithBranch = {
+                ...course,
+                branch_id: branch.id,
+                branch_name: branch.branch?.name || 'Unknown Branch'
+              }
+              allCoursesFromBranches.push(courseWithBranch)
+            })
+          }
+        })
+
+        console.log("All courses extracted:", allCoursesFromBranches)
+        setAllCourses(allCoursesFromBranches)
+        setFilteredCourses(allCoursesFromBranches) // Initially show all courses
 
       } catch (error) {
-        console.error('Error fetching branches for reports:', error)
-        setBranchesError(error instanceof Error ? error.message : 'Failed to fetch branches')
-        toast.error('Failed to load branches for filtering')
+        console.error('Error fetching branches with courses for reports:', error)
+        setBranchesError(error instanceof Error ? error.message : 'Failed to fetch branches with courses')
+        toast.error('Failed to load branches and courses for filtering')
       } finally {
         setBranchesLoading(false)
       }
     }
 
-    // Fetch branches for all report categories that have branch dropdowns
+    // Fetch branches with courses for all report categories that have branch dropdowns
     if (categoryId && ['student', 'financial', 'branch', 'coach', 'course', 'master'].includes(categoryId)) {
-      fetchBranches()
+      fetchBranchesWithCourses()
     }
   }, [categoryId])
+
+  // Dynamic course filtering based on selected branch
+  useEffect(() => {
+    if (!allCourses.length) return
+
+    const selectedBranchId = filters.branch_id
+
+    if (!selectedBranchId || selectedBranchId === 'all') {
+      // Show all courses when no branch is selected or "All Branches" is selected
+      setFilteredCourses(allCourses)
+    } else {
+      // Filter courses for the selected branch
+      const coursesForBranch = allCourses.filter(course => course.branch_id === selectedBranchId)
+      setFilteredCourses(coursesForBranch)
+
+      // Clear course selection if the currently selected course is not available in the new branch
+      if (filters.course_id && filters.course_id !== 'all') {
+        const isCourseAvailable = coursesForBranch.some(course => course.id === filters.course_id)
+        if (!isCourseAvailable) {
+          // Clear course selection
+          setFilters(prev => ({ ...prev, course_id: 'all' }))
+        }
+      }
+    }
+  }, [filters.branch_id, allCourses, filters.course_id])
 
   // Show skeleton loading for initial load
   if (loading && !filterOptions) {
@@ -377,6 +441,15 @@ function CategoryReportsPageContent() {
       ...prev,
       [key]: value === "all" ? "" : value
     }))
+
+    // Handle custom date range visibility
+    if (key === 'date_range') {
+      setShowCustomDateInputs(value === 'custom')
+      if (value !== 'custom') {
+        setCustomStartDate("")
+        setCustomEndDate("")
+      }
+    }
   }
 
   const handleStudentSearch = async () => {
@@ -390,26 +463,107 @@ function CategoryReportsPageContent() {
     setHasSearched(true)
 
     try {
-      // Call the student reports API with filters
-      const response = await reportsAPI.getStudentReports(token, filters)
+      // Build search parameters
+      const searchParams: any = {}
 
-      // Extract student data from the response
-      let students = response.student_reports?.students || []
-
-      // If no individual student data is returned from API, generate mock data for demonstration
-      if (students.length === 0) {
-        students = generateMockStudentData(filters)
+      // Add text search query if provided
+      if (searchQuery && searchQuery.trim().length >= 2) {
+        searchParams.q = searchQuery.trim()
       }
 
+      // Add filter parameters
+      if (filters.branch_id && filters.branch_id !== 'all') {
+        searchParams.branch_id = filters.branch_id
+      }
+
+      if (filters.course_id && filters.course_id !== 'all') {
+        searchParams.course_id = filters.course_id
+      }
+
+      if (filters.status && filters.status !== 'all') {
+        searchParams.is_active = filters.status === 'active'
+      }
+
+      // Add date range filtering
+      if (filters.date_range && filters.date_range !== 'all') {
+        const today = new Date()
+        let startDate: Date | null = null
+        let endDate: Date | null = null
+
+        switch (filters.date_range) {
+          case 'current-month':
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1)
+            endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+            break
+          case 'last-month':
+            startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+            endDate = new Date(today.getFullYear(), today.getMonth(), 0)
+            break
+          case 'current-quarter':
+            const currentQuarter = Math.floor(today.getMonth() / 3)
+            startDate = new Date(today.getFullYear(), currentQuarter * 3, 1)
+            endDate = new Date(today.getFullYear(), (currentQuarter + 1) * 3, 0)
+            break
+          case 'last-quarter':
+            const lastQuarter = Math.floor(today.getMonth() / 3) - 1
+            const quarterYear = lastQuarter < 0 ? today.getFullYear() - 1 : today.getFullYear()
+            const adjustedQuarter = lastQuarter < 0 ? 3 : lastQuarter
+            startDate = new Date(quarterYear, adjustedQuarter * 3, 1)
+            endDate = new Date(quarterYear, (adjustedQuarter + 1) * 3, 0)
+            break
+          case 'current-year':
+            startDate = new Date(today.getFullYear(), 0, 1)
+            endDate = new Date(today.getFullYear(), 11, 31)
+            break
+          case 'last-year':
+            startDate = new Date(today.getFullYear() - 1, 0, 1)
+            endDate = new Date(today.getFullYear() - 1, 11, 31)
+            break
+          case 'custom':
+            if (customStartDate) {
+              startDate = new Date(customStartDate)
+            }
+            if (customEndDate) {
+              endDate = new Date(customEndDate)
+            }
+            break
+        }
+
+        if (startDate) {
+          searchParams.start_date = startDate.toISOString()
+        }
+        if (endDate) {
+          searchParams.end_date = endDate.toISOString()
+        }
+      }
+
+      // Set pagination
+      searchParams.skip = 0
+      searchParams.limit = 100
+
+      console.log('Student search parameters:', searchParams)
+
+      // Call the comprehensive student search API
+      const response = await studentAPI.searchStudents(token, searchParams)
+
+      console.log('Student search response:', response)
+
+      const students = response.students || []
       setStudentResults(students)
-      toast.success(`Found ${students.length} student${students.length !== 1 ? 's' : ''}`)
+
+      const searchMessage = searchQuery
+        ? `Found ${students.length} student${students.length !== 1 ? 's' : ''} matching "${searchQuery}"`
+        : `Found ${students.length} student${students.length !== 1 ? 's' : ''}`
+
+      toast.success(searchMessage)
     } catch (error) {
       console.error('Error searching students:', error)
 
-      // For demonstration purposes, show mock data even if API fails
-      const mockStudents = generateMockStudentData(filters)
-      setStudentResults(mockStudents)
-      toast.warning(`API unavailable. Showing ${mockStudents.length} sample student${mockStudents.length !== 1 ? 's' : ''}`)
+      // Show error message
+      toast.error('Failed to search students. Please try again.')
+
+      // Clear results on error
+      setStudentResults([])
     } finally {
       setSearchLoading(false)
     }
@@ -2069,6 +2223,29 @@ function CategoryReportsPageContent() {
                 <CardTitle className="text-lg font-semibold text-gray-900">Search Student Reports</CardTitle>
               </CardHeader>
               <CardContent>
+                {/* Search Input */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Search Students</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      type="text"
+                      placeholder="Search by name, email, or phone..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleStudentSearch()
+                        }
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Search by student name, email, or phone number (minimum 2 characters)
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                   {/* Branch Dropdown */}
                   <div>
@@ -2108,19 +2285,30 @@ function CategoryReportsPageContent() {
                     <Select
                       value={filters.course_id || "all"}
                       onValueChange={(value) => handleFilterChange('course_id', value)}
+                      disabled={branchesLoading}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Course" />
+                        <SelectValue placeholder={branchesLoading ? "Loading courses..." : "Select Course"} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Courses</SelectItem>
-                        {filterOptions?.filter_options?.courses?.filter(course => course.id && course.title).map((course) => (
+                        {filteredCourses.filter(course => course.id && (course.title || course.name)).map((course) => (
                           <SelectItem key={course.id} value={course.id}>
-                            {course.title}
+                            {course.title || course.name} ({course.code || course.id})
                           </SelectItem>
                         ))}
+                        {filteredCourses.length === 0 && filters.branch_id && filters.branch_id !== 'all' && (
+                          <SelectItem value="" disabled>
+                            No courses available for selected branch
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                    {filteredCourses.length === 0 && filters.branch_id && filters.branch_id !== 'all' && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        No courses assigned to the selected branch
+                      </p>
+                    )}
                   </div>
 
                   {/* Date Range Dropdown */}
@@ -2141,9 +2329,34 @@ function CategoryReportsPageContent() {
                         <SelectItem value="last-quarter">Last Quarter</SelectItem>
                         <SelectItem value="current-year">Current Year</SelectItem>
                         <SelectItem value="last-year">Last Year</SelectItem>
+                        <SelectItem value="custom">Custom Date Range</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Custom Date Range Inputs */}
+                  {showCustomDateInputs && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <Input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <Input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Status Filter */}
                   <div>
@@ -2213,60 +2426,149 @@ function CategoryReportsPageContent() {
                       <table className="min-w-full border-collapse">
                         <thead>
                           <tr className="border-b border-gray-200 bg-gray-50">
-                            <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Student Name</th>
-                            <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm hidden sm:table-cell">Course</th>
-                            <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm hidden md:table-cell">Branch</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Student Details</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm hidden sm:table-cell">Contact</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm hidden md:table-cell">Courses</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm hidden lg:table-cell">Branch</th>
                             <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Status</th>
-                            <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm hidden lg:table-cell">Enrollment Date</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm hidden xl:table-cell">Registration</th>
                             <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {studentResults.map((student, index) => (
                             <tr key={student.id || index} className="hover:bg-gray-50 transition-colors">
+                              {/* Student Details */}
                               <td className="py-4 px-4">
                                 <div className="flex items-center">
-                                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
                                     <span className="text-blue-600 font-medium text-sm">
-                                      {student.name?.charAt(0)?.toUpperCase() || 'S'}
+                                      {(student.full_name || student.first_name || 'N').charAt(0).toUpperCase()}
                                     </span>
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="font-medium text-gray-900 truncate">{student.name || 'N/A'}</p>
-                                    <p className="text-sm text-gray-500 truncate sm:hidden">{student.course || 'N/A'}</p>
-                                    <p className="text-xs text-gray-400 truncate">{student.email || 'No email'}</p>
+                                    <p className="font-medium text-gray-900 truncate">
+                                      {student.full_name || `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'N/A'}
+                                    </p>
+                                    <p className="text-xs text-gray-500 truncate">
+                                      ID: {student.id?.substring(0, 8) || 'N/A'}
+                                    </p>
+                                    {student.date_of_birth && (
+                                      <p className="text-xs text-gray-400 truncate">
+                                        DOB: {new Date(student.date_of_birth).toLocaleDateString()}
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                               </td>
-                              <td className="py-4 px-4 text-gray-900 hidden sm:table-cell">
-                                <div className="max-w-xs truncate">{student.course || 'N/A'}</div>
+
+                              {/* Contact Information */}
+                              <td className="py-4 px-4 hidden sm:table-cell">
+                                <div className="text-sm">
+                                  <p className="text-gray-900 truncate">{student.email || 'No email'}</p>
+                                  <p className="text-gray-500 truncate">{student.phone || 'No phone'}</p>
+                                  {student.gender && (
+                                    <p className="text-xs text-gray-400 capitalize">{student.gender}</p>
+                                  )}
+                                </div>
                               </td>
-                              <td className="py-4 px-4 text-gray-900 hidden md:table-cell">
-                                <div className="max-w-xs truncate">{student.branch || 'N/A'}</div>
+
+                              {/* Courses */}
+                              <td className="py-4 px-4 hidden md:table-cell">
+                                <div className="text-sm">
+                                  {student.courses && student.courses.length > 0 ? (
+                                    <div className="space-y-1">
+                                      {student.courses.slice(0, 2).map((course: any, idx: number) => (
+                                        <div key={idx} className="flex items-center">
+                                          <span className="inline-flex px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded">
+                                            {course.name || course.title || 'Unknown Course'}
+                                          </span>
+                                        </div>
+                                      ))}
+                                      {student.courses.length > 2 && (
+                                        <p className="text-xs text-gray-500">
+                                          +{student.courses.length - 2} more
+                                        </p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">No courses</span>
+                                  )}
+                                </div>
                               </td>
+
+                              {/* Branch */}
+                              <td className="py-4 px-4 hidden lg:table-cell">
+                                <div className="text-sm">
+                                  {student.branches && student.branches.length > 0 ? (
+                                    <div className="space-y-1">
+                                      {student.branches.slice(0, 1).map((branch: any, idx: number) => (
+                                        <div key={idx}>
+                                          <p className="text-gray-900 truncate">{branch.name || 'Unknown Branch'}</p>
+                                          {branch.code && (
+                                            <p className="text-xs text-gray-500">({branch.code})</p>
+                                          )}
+                                        </div>
+                                      ))}
+                                      {student.branches.length > 1 && (
+                                        <p className="text-xs text-gray-500">
+                                          +{student.branches.length - 1} more
+                                        </p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">No branch</span>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Status */}
                               <td className="py-4 px-4">
-                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                  student.status === 'active' ? 'bg-green-100 text-green-800' :
-                                  student.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
-                                  student.status === 'graduated' ? 'bg-blue-100 text-blue-800' :
-                                  student.status === 'suspended' ? 'bg-red-100 text-red-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {student.status || 'Unknown'}
-                                </span>
+                                <div className="flex flex-col space-y-1">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                    student.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {student.is_active ? 'Active' : 'Inactive'}
+                                  </span>
+                                  {student.total_enrollments > 0 && (
+                                    <span className="text-xs text-gray-500">
+                                      {student.active_enrollments}/{student.total_enrollments} enrollments
+                                    </span>
+                                  )}
+                                </div>
                               </td>
-                              <td className="py-4 px-4 text-gray-900 text-sm hidden lg:table-cell">
-                                {student.enrollment_date ? new Date(student.enrollment_date).toLocaleDateString() : 'N/A'}
+
+                              {/* Registration Date */}
+                              <td className="py-4 px-4 text-gray-900 text-sm hidden xl:table-cell">
+                                <div className="text-sm">
+                                  {student.created_at ? (
+                                    <>
+                                      <p>{new Date(student.created_at).toLocaleDateString()}</p>
+                                      <p className="text-xs text-gray-500">
+                                        {new Date(student.created_at).toLocaleDateString('en-US', {
+                                          month: 'short',
+                                          year: 'numeric'
+                                        })}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    'N/A'
+                                  )}
+                                </div>
                               </td>
+
+                              {/* Actions */}
                               <td className="py-4 px-4">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleViewStudentDetails(student.id)}
-                                  className="text-xs px-2 py-1"
-                                >
-                                  View
-                                </Button>
+                                <div className="flex space-x-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleViewStudentDetails(student.id)}
+                                    className="text-xs px-2 py-1"
+                                  >
+                                    View
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           ))}
